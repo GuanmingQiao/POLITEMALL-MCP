@@ -93,4 +93,7 @@ app.use(vncProxy);
 const server = app.listen(config.port, () => {
   console.log(`politemall-mcp control-plane listening on :${config.port}`);
 });
-server.on("upgrade", vncProxy.upgrade as any);
+server.on("upgrade", (req, socket, head) => {
+  console.log(`[upgrade] ${req.url}`);
+  (vncProxy.upgrade as any)(req, socket, head);
+});
