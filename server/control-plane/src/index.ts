@@ -87,6 +87,13 @@ const vncProxy = createProxyMiddleware({
     return novncTargetFor(sessionId) ?? "http://127.0.0.1:1";
   },
   pathRewrite: (path) => path.replace(/^\/vnc\/[^/]+/, ""),
+  on: {
+    proxyReqWs: (proxyReq) => {
+      // websockify doesn't support permessage-deflate; forwarding the browser's
+      // compression offer as-is causes it to drop the connection immediately.
+      proxyReq.removeHeader("sec-websocket-extensions");
+    },
+  },
 });
 app.use(vncProxy);
 
