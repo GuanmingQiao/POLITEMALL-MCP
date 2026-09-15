@@ -1,0 +1,4 @@
+[
+  { "id": "owner", "name": "Guanming", "token": "<random hex string>" },
+  { "id": "teammate-1", "name": "Teammate 1", "token": "<random hex string>" }
+]
