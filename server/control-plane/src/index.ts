@@ -73,17 +73,22 @@ app.post("/mcp", async (req, res) => {
 });
 
 // Reverse proxy to the ephemeral per-session noVNC container (HTTP + WebSocket).
+// Mounted at the root (not via an Express path pattern) so req.url is always the
+// full original path for both regular HTTP requests and WebSocket upgrades — Express
+// strips a matched app.use() path prefix from req.url, but upgrade events bypass
+// Express entirely and always see the untouched original URL.
 const vncProxy = createProxyMiddleware({
   target: "http://placeholder",
   ws: true,
   changeOrigin: true,
+  pathFilter: "/vnc/**",
   router: (req) => {
     const sessionId = req.url?.split("/")[2] ?? "";
     return novncTargetFor(sessionId) ?? "http://127.0.0.1:1";
   },
   pathRewrite: (path) => path.replace(/^\/vnc\/[^/]+/, ""),
 });
-app.use("/vnc/:sessionId", vncProxy);
+app.use(vncProxy);
 
 const server = app.listen(config.port, () => {
   console.log(`politemall-mcp control-plane listening on :${config.port}`);
