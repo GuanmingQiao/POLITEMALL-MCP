@@ -1,5 +1,6 @@
 FROM mcr.microsoft.com/playwright:v1.48.0-jammy
 
+ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb x11vnc novnc websockify \
     && rm -rf /var/lib/apt/lists/*
