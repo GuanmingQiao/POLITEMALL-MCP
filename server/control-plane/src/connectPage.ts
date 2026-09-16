@@ -24,10 +24,15 @@ export function renderConnectPage(): string {
 <body>
 <h1>Connect to POLITEMall MCP</h1>
 
-<h2>Step 1 — Get a token</h2>
+<p><strong>Cookie expired and you already have a token?</strong> You don't need a new
+one and you don't need to touch your MCP client's config — just skip to the form
+below, enter your existing token and a fresh cookie, and submit. The token is what
+your MCP client is connected to; only the cookie behind it changes.</p>
+
+<h2>First time here? Get a token</h2>
 <p>Tokens aren't tied to your name or account here — it's just a random key that maps
-to your connected session. If you lose it, generate a new one and reconnect; there's
-no recovery.</p>
+to your connected session. If you lose it, generate a new one; there's no recovery,
+but you'll need to update your MCP client's config with the new one.</p>
 <button id="generate">Generate a new token</button>
 <div id="tokenBox">
   <div id="tokenValue"></div>
@@ -35,19 +40,19 @@ no recovery.</p>
   your MCP client's config, or a password manager. Don't paste it anywhere else.</p>
 </div>
 
-<h2>Step 2 — Connect your POLITEMall session</h2>
+<h2>Connect (or refresh) your POLITEMall session</h2>
 <p>POLITEMall's login only works from the polytechnic corporate network/VPN, so this
 has to happen in your own regular browser, not on this page.</p>
 <ol>
   <li>In a normal browser tab, log in at <a href="https://lms.polite.edu.sg/d2l/home" target="_blank">lms.polite.edu.sg</a> as you usually do.</li>
   <li>Open DevTools (<code>F12</code>) → <strong>Network</strong> tab, then reload the page.</li>
   <li>Click any request to <code>lms.polite.edu.sg</code>, open its <strong>Request Headers</strong>, and copy the full value of the <code>Cookie</code> header (the whole string, e.g. <code>d2lSessionVal=...; d2lSecureSessionVal=...</code>).</li>
-  <li>Paste it below along with your token from Step 1, then submit.</li>
+  <li>Paste it below along with your token (new or existing), then submit.</li>
 </ol>
 <p><strong>Treat both values like passwords</strong> — don't paste them anywhere else. This page sends them directly and only to this server over HTTPS.</p>
 
 <label for="token">Your token</label>
-<input id="token" type="password" autocomplete="off" placeholder="from step 1">
+<input id="token" type="password" autocomplete="off" placeholder="new from above, or your existing one">
 
 <label for="cookie">Cookie header from lms.polite.edu.sg</label>
 <input id="cookie" type="password" autocomplete="off" placeholder="d2lSessionVal=...; d2lSecureSessionVal=...">
