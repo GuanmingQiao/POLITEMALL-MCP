@@ -7,6 +7,7 @@ import { renderConnectPage } from "./connectPage.js";
 import { buildMcpServerForToken } from "./mcp.js";
 import { auditLog } from "./auditLog.js";
 import { bearerToken, rateLimitByToken } from "./rateLimit.js";
+import { startKeepAlive } from "./keepAlive.js";
 import type { School } from "./schools.js";
 
 const VALID_SCHOOLS: School[] = ["politemall", "nyp", "step"];
@@ -77,3 +78,5 @@ app.post("/mcp", rateLimitByToken((req) => bearerToken(req)), async (req, res) =
 app.listen(config.port, () => {
   console.log(`politemall-mcp control-plane listening on :${config.port}`);
 });
+
+startKeepAlive();
