@@ -1,4 +1,9 @@
 [
-  { "id": "owner", "name": "Guanming", "token": "<random hex string>" },
-  { "id": "teammate-1", "name": "Teammate 1", "token": "<random hex string>" }
+  {
+    "id": "owner",
+    "name": "Guanming",
+    "token": "<random hex string>",
+    "tokenCreatedAt": "2026-09-16T00:00:00.000Z",
+    "tokenExpiresAt": "2026-12-15T00:00:00.000Z"
+  }
 ]

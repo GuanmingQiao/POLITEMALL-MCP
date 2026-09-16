@@ -11,8 +11,4 @@ chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 git clone https://github.com/GuanmingQiao/POLITEMALL-MCP.git /opt/politemall-mcp
 
-docker network create politemall-net || true
-
-docker build -t politemall-mcp-login-session:latest /opt/politemall-mcp/server/login-session
-
 touch /opt/politemall-mcp-bootstrap-done

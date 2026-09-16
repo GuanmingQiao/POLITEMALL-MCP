@@ -10,14 +10,14 @@ function toolResult(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
 
-function loginRequiredResult(user: User) {
-  const loginUrl = `${config.publicOrigin}/login?token=${user.token}`;
+function loginRequiredResult() {
+  const connectUrl = `${config.publicOrigin}/connect`;
   return {
     isError: true,
     content: [
       {
         type: "text" as const,
-        text: `Your POLITEMall session has expired or was never set up. Log in again at ${loginUrl}`,
+        text: `Your POLITEMall session has expired or was never connected. Reconnect at ${connectUrl} (you'll need your access token and a fresh cookie from lms.polite.edu.sg).`,
       },
     ],
   };
@@ -25,11 +25,11 @@ function loginRequiredResult(user: User) {
 
 async function run<T>(user: User, fn: (cookieHeader: string) => Promise<T>) {
   const cookieHeader = cookieHeaderFor(user.id);
-  if (!cookieHeader) return loginRequiredResult(user);
+  if (!cookieHeader) return loginRequiredResult();
   try {
     return toolResult(await fn(cookieHeader));
   } catch (err) {
-    if (err instanceof SessionExpiredError) return loginRequiredResult(user);
+    if (err instanceof SessionExpiredError) return loginRequiredResult();
     throw err;
   }
 }

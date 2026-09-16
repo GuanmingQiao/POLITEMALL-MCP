@@ -2,10 +2,11 @@
 
 `provision.ps1` records the one-time AWS setup (security group, IAM role, Secrets
 Manager master key, EC2 instance). After the instance boots and `user-data.sh` has
-built the `login-session` image (check via SSM: `test -f /opt/politemall-mcp-bootstrap-done`),
+cloned the repo (check via SSM: `test -f /opt/politemall-mcp-bootstrap-done`),
 finish the deploy manually:
 
-1. Generate per-teammate tokens into `server/data/users.json` (gitignored — see
+1. Generate tokens for each teammate with `manage-tokens.ps1` (see its header
+   comment) and assemble `server/data/users.json` (gitignored — see
    `server/data/users.json.example` for the shape).
 2. Write `server/.env` on the instance with `PUBLIC_HOST=<ip-with-dashes>.sslip.io`
    (e.g. `13-212-182-50.sslip.io` for IP `13.212.182.50`). **Do not use the AWS-assigned
@@ -24,21 +25,26 @@ cd /opt/politemall-mcp && git pull
 cd server && docker compose up -d --build
 ```
 
+## Rotating or revoking a teammate's token
+
+Edit `server/data/users.json` on the instance (via SSM) and push the new content —
+no restart needed, it's re-read from disk on every request. Removing an entry or
+changing its `token` immediately invalidates the old one.
+
+## Why there's no automated login
+
+POLITEMall's SSO only works from inside the polytechnic's corporate network/VPN, so
+a server sitting in AWS can never complete it — no proxy or embedded-browser trick
+gets around a network-level restriction enforced by the identity provider itself.
+An earlier version of this server tried a server-side headless-Chromium-plus-noVNC
+flow; it's been removed in favor of having each person paste their own
+already-authenticated session cookie (copied from their own browser's DevTools)
+through the `/connect` page — see [../server/README.md](../server/README.md).
+
 ## Known gotchas already fixed in the code
 
-- `login-session/Dockerfile` must set `DEBIAN_FRONTEND=noninteractive` before
-  `apt-get install` — otherwise the `tzdata` package prompts interactively and the
-  build hangs forever.
-- `login-session/package.json` pins `playwright` to the **exact** version baked into
-  the `mcr.microsoft.com/playwright` base image tag — a caret range lets npm install a
-  newer version with no matching browser binary in the image.
 - Caddyfile env substitution is `{$VAR}`, not `{env.VAR}` (the latter is a per-request
   runtime placeholder, not a config-time substitution).
-- The noVNC WebSocket reverse proxy is mounted at the Express app root (not via an
-  `app.use('/vnc/:id', ...)` path pattern), because Express strips a matched mount
-  prefix from `req.url` for regular requests but the raw `'upgrade'` event (used for
-  WebSocket handshakes) bypasses Express entirely and always sees the untouched URL —
-  mounting at the root keeps both code paths seeing the same URL format.
-- Strip the `Sec-WebSocket-Extensions` header before proxying to websockify — it
-  doesn't support `permessage-deflate`, and forwarding the browser's compression offer
-  as-is causes it to drop the connection.
+- Tokens are never accepted via URL query strings anywhere (only `Authorization:
+  Bearer` headers) — query strings end up in proxy/access logs, browser history, and
+  `Referer` headers.

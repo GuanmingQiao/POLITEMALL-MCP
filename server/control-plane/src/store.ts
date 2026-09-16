@@ -3,16 +3,8 @@ import { dirname } from "node:path";
 import { config } from "./config.js";
 import { decrypt, encrypt } from "./crypto.js";
 
-interface StoredCookie {
-  name: string;
-  value: string;
-  domain: string;
-  path: string;
-  expires: number;
-}
-
 interface StoreRecord {
-  encryptedCookies: string;
+  encryptedCookieHeader: string;
   updatedAt: string;
 }
 
@@ -35,11 +27,11 @@ function writeStore(data: StoreFile): void {
   writeFileSync(config.storeFile, JSON.stringify(data, null, 2), { mode: 0o600 });
 }
 
-export function saveUserCookies(userId: string, cookies: StoredCookie[]): Promise<void> {
+export function saveUserCookieHeader(userId: string, cookieHeader: string): Promise<void> {
   writeChain = writeChain.then(() => {
     const store = readStore();
     store[userId] = {
-      encryptedCookies: encrypt(JSON.stringify(cookies)),
+      encryptedCookieHeader: encrypt(cookieHeader),
       updatedAt: new Date().toISOString(),
     };
     writeStore(store);
@@ -47,15 +39,8 @@ export function saveUserCookies(userId: string, cookies: StoredCookie[]): Promis
   return writeChain;
 }
 
-export function getUserCookies(userId: string): StoredCookie[] | null {
-  const store = readStore();
-  const record = store[userId];
-  if (!record) return null;
-  return JSON.parse(decrypt(record.encryptedCookies));
-}
-
 export function cookieHeaderFor(userId: string): string | null {
-  const cookies = getUserCookies(userId);
-  if (!cookies) return null;
-  return cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+  const record = readStore()[userId];
+  if (!record) return null;
+  return decrypt(record.encryptedCookieHeader);
 }
