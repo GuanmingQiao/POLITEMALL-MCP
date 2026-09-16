@@ -99,9 +99,10 @@ Your agent → **Tools** → **Add a tool** → **New tool** → **Model Context
 - **Authentication**: API key → **Type**: Header → **Header name**: `Authorization`
 
 The value isn't entered here — after saving, the tool shows as **"Not connected"**;
-click it → **New connection** → enter `Bearer YOUR_TOKEN` as the API key value →
-Create. (If that doesn't work, try just the raw token with no `Bearer` prefix —
-Copilot Studio may prepend it automatically.)
+click it → **New connection** → enter just your raw token (no `Bearer ` prefix
+needed) as the API key value → Create. The server accepts the `Authorization`
+header either way (`Bearer <token>` or the bare token), so paste whichever is
+easiest.
 
 ## Security notes
 

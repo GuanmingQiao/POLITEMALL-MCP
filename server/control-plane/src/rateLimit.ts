@@ -28,7 +28,12 @@ export function rateLimitByToken(keyFn: (req: Request) => string | undefined) {
   };
 }
 
+// Accepts both "Authorization: Bearer <token>" and a bare "Authorization: <token>" —
+// some clients (e.g. Copilot Studio's API-key connection field) send whatever raw
+// string you configure with no way to guarantee a "Bearer " prefix gets typed in.
 export function bearerToken(req: Request): string | undefined {
-  const auth = req.header("Authorization") ?? "";
-  return auth.startsWith("Bearer ") ? auth.slice(7) : undefined;
+  const auth = req.header("Authorization")?.trim();
+  if (!auth) return undefined;
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1] : auth;
 }
