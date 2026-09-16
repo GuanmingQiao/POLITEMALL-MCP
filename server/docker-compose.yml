@@ -22,8 +22,7 @@ services:
       - AWS_REGION=ap-southeast-1
       - MASTER_KEY_SECRET_ID=politemall-mcp/master-key
       - PUBLIC_ORIGIN=https://${PUBLIC_HOST}
-      - USERS_FILE=/data/users.json
-      - STORE_FILE=/data/sessions.json
+      - STORE_FILE=/data/tokens.json
       - RATE_LIMIT_PER_MINUTE=30
     volumes:
       - ./data:/data

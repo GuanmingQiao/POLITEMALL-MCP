@@ -5,15 +5,16 @@ Manager master key, EC2 instance). After the instance boots and `user-data.sh` h
 cloned the repo (check via SSM: `test -f /opt/politemall-mcp-bootstrap-done`),
 finish the deploy manually:
 
-1. Generate tokens for each teammate with `manage-tokens.ps1` (see its header
-   comment) and assemble `server/data/users.json` (gitignored — see
-   `server/data/users.json.example` for the shape).
-2. Write `server/.env` on the instance with `PUBLIC_HOST=<ip-with-dashes>.sslip.io`
+1. Write `server/.env` on the instance with `PUBLIC_HOST=<ip-with-dashes>.sslip.io`
    (e.g. `13-212-182-50.sslip.io` for IP `13.212.182.50`). **Do not use the AWS-assigned
    `*.compute.amazonaws.com` hostname** — Let's Encrypt refuses to issue certificates
    for it (it's on the public suffix "forbidden" list). sslip.io wildcard-resolves
    `<ip-with-dashes>.sslip.io` to the IP itself and works fine with Let's Encrypt.
-3. `cd /opt/politemall-mcp/server && docker compose up -d --build`
+2. `cd /opt/politemall-mcp/server && docker compose up -d --build`
+
+There's no user list to seed — `server/data/tokens.json` is created automatically
+the first time someone signs up via `/connect`, and stays gitignored (it holds
+encrypted session cookies).
 
 All of this was done interactively via `aws ssm send-command` (no SSH — the security
 group has no port 22; management is via SSM Session Manager / Run Command only).
@@ -25,11 +26,13 @@ cd /opt/politemall-mcp && git pull
 cd server && docker compose up -d --build
 ```
 
-## Rotating or revoking a teammate's token
+## Revoking a token
 
-Edit `server/data/users.json` on the instance (via SSM) and push the new content —
-no restart needed, it's re-read from disk on every request. Removing an entry or
-changing its `token` immediately invalidates the old one.
+There's no admin-side revocation UI — tokens are self-issued and self-service by
+design (see `server/README.md`). To kill one, delete its entry from
+`server/data/tokens.json` on the instance (keyed by a SHA-256 hash of the token, so
+you can't reverse-lookup which entry belongs to whom), or just let it expire
+(90 days from issuance). Whoever holds that token reconnects by generating a new one.
 
 ## Why there's no automated login
 

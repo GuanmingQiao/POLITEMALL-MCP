@@ -2,10 +2,9 @@ import express from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { config } from "./config.js";
 import { loadMasterKey } from "./secrets.js";
-import { getUserByToken, tokenId } from "./users.js";
-import { saveUserCookieHeader } from "./store.js";
+import { isValidToken, issueToken, saveCookieHeader, tokenLogId } from "./tokenStore.js";
 import { renderConnectPage } from "./connectPage.js";
-import { buildMcpServerForUser } from "./mcp.js";
+import { buildMcpServerForToken } from "./mcp.js";
 import { auditLog } from "./auditLog.js";
 import { bearerToken, rateLimitByToken } from "./rateLimit.js";
 
@@ -22,10 +21,15 @@ app.get("/connect", (_req, res) => {
 
 app.use(express.json());
 
+app.post("/signup", rateLimitByToken((req) => req.ip), async (req, res) => {
+  const token = await issueToken();
+  auditLog("signup", { tokenId: tokenLogId(token), ip: req.ip });
+  res.json({ token });
+});
+
 app.post("/sync", rateLimitByToken((req) => bearerToken(req)), async (req, res) => {
   const token = bearerToken(req);
-  const user = token ? getUserByToken(token) : undefined;
-  if (!user) {
+  if (!token || !isValidToken(token)) {
     auditLog("sync_rejected", { ip: req.ip });
     res.status(401).json({ error: "unauthorized" });
     return;
@@ -37,24 +41,23 @@ app.post("/sync", rateLimitByToken((req) => bearerToken(req)), async (req, res) 
     return;
   }
 
-  await saveUserCookieHeader(user.id, cookieHeader);
-  auditLog("sync_ok", { userId: user.id, tokenId: tokenId(token!), ip: req.ip });
+  await saveCookieHeader(token, cookieHeader);
+  auditLog("sync_ok", { tokenId: tokenLogId(token), ip: req.ip });
   res.json({ ok: true });
 });
 
 app.post("/mcp", rateLimitByToken((req) => bearerToken(req)), async (req, res) => {
   const token = bearerToken(req);
-  const user = token ? getUserByToken(token) : undefined;
-  if (!user) {
+  if (!token || !isValidToken(token)) {
     auditLog("mcp_rejected", { ip: req.ip });
     res.status(401).json({ error: "unauthorized" });
     return;
   }
 
   const method = (req.body as { method?: string })?.method;
-  auditLog("mcp_call", { userId: user.id, tokenId: tokenId(token!), method, ip: req.ip });
+  auditLog("mcp_call", { tokenId: tokenLogId(token), method, ip: req.ip });
 
-  const server = buildMcpServerForUser(user);
+  const server = buildMcpServerForToken(token);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     void transport.close();

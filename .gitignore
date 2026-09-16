@@ -6,5 +6,3 @@ secrets.txt
 server/data/
 server/control-plane/dist/
 server/control-plane/node_modules/
-server/login-session/dist/
-server/login-session/node_modules/
