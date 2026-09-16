@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: system-ui, sans-serif; width: 320px; padding: 12px; color: #222; }
+  h1 { font-size: 14px; margin: 0 0 10px; }
+  label { display: block; font-size: 12px; font-weight: 600; margin-top: 8px; }
+  input { width: 100%; box-sizing: border-box; padding: 6px; margin-top: 2px; font-family: monospace; font-size: 12px; }
+  button { margin-top: 8px; padding: 6px 12px; font-size: 13px; width: 100%; cursor: pointer; }
+  .row { display: flex; gap: 6px; margin-top: 6px; }
+  .row button { flex: 1; }
+  .secondary { font-size: 11px; opacity: 0.75; }
+  #status { margin-top: 10px; font-size: 12px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>POLITEMall MCP — cookie sync</h1>
+
+<label for="serverUrl">Server URL</label>
+<input id="serverUrl" value="https://13-212-182-50.sslip.io">
+
+<label for="token">Your token</label>
+<input id="token" type="password" placeholder="paste once, it's saved here">
+<button id="generateToken" class="secondary">Generate a new token</button>
+
+<button id="syncAll"><strong>Sync all connected schools</strong></button>
+<div class="row">
+  <button id="syncPolitemall">POLITEMall</button>
+  <button id="syncNyp">NYP</button>
+  <button id="syncStep">STEP</button>
+</div>
+
+<div id="status"></div>
+<script src="popup.js"></script>
+</body>
+</html>

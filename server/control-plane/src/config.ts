@@ -5,5 +5,5 @@ export const config = {
   storeFile: process.env.STORE_FILE ?? "/data/tokens.json",
   publicOrigin: process.env.PUBLIC_ORIGIN ?? "",
   rateLimitPerMinute: Number(process.env.RATE_LIMIT_PER_MINUTE ?? 30),
-  keepAliveIntervalMs: Number(process.env.KEEP_ALIVE_INTERVAL_MS ?? 10 * 60 * 1000),
+  keepAliveIntervalMs: Number(process.env.KEEP_ALIVE_INTERVAL_MS ?? 5 * 60 * 1000),
 };

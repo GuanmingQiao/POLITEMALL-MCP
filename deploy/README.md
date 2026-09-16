@@ -29,7 +29,7 @@ cd server && docker compose up -d --build
 ## Revoking a token
 
 There's no admin-side revocation UI — tokens are self-issued and self-service by
-design (see `server/README.md`). To kill one, delete its entry from
+design (see the [root README](../README.md)). To kill one, delete its entry from
 `server/data/tokens.json` on the instance (keyed by a SHA-256 hash of the token, so
 you can't reverse-lookup which entry belongs to whom), or just let it expire
 (90 days from issuance). Whoever holds that token reconnects by generating a new one.
@@ -41,8 +41,9 @@ a server sitting in AWS can never complete it — no proxy or embedded-browser t
 gets around a network-level restriction enforced by the identity provider itself.
 An earlier version of this server tried a server-side headless-Chromium-plus-noVNC
 flow; it's been removed in favor of having each person paste their own
-already-authenticated session cookie (copied from their own browser's DevTools)
-through the `/connect` page — see [../server/README.md](../server/README.md).
+already-authenticated session cookie (copied from their own browser's DevTools,
+or via the [cookie sync extension](../extension/README.md)) through the
+`/connect` page — see the [root README](../README.md).
 
 ## Known gotchas already fixed in the code
 
