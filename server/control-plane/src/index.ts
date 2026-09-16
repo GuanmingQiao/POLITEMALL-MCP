@@ -7,6 +7,9 @@ import { renderConnectPage } from "./connectPage.js";
 import { buildMcpServerForToken } from "./mcp.js";
 import { auditLog } from "./auditLog.js";
 import { bearerToken, rateLimitByToken } from "./rateLimit.js";
+import type { School } from "./d2l.js";
+
+const VALID_SCHOOLS: School[] = ["politemall", "nyp"];
 
 await loadMasterKey();
 
@@ -35,14 +38,18 @@ app.post("/sync", rateLimitByToken((req) => bearerToken(req)), async (req, res) 
     return;
   }
 
-  const { cookieHeader } = req.body as { cookieHeader?: string };
+  const { school, cookieHeader } = req.body as { school?: string; cookieHeader?: string };
+  if (!school || !VALID_SCHOOLS.includes(school as School)) {
+    res.status(400).json({ error: `school must be one of: ${VALID_SCHOOLS.join(", ")}` });
+    return;
+  }
   if (!cookieHeader || typeof cookieHeader !== "string" || cookieHeader.length < 10) {
     res.status(400).json({ error: "cookieHeader is required" });
     return;
   }
 
-  await saveCookieHeader(token, cookieHeader);
-  auditLog("sync_ok", { tokenId: tokenLogId(token), ip: req.ip });
+  await saveCookieHeader(token, school as School, cookieHeader);
+  auditLog("sync_ok", { tokenId: tokenLogId(token), school, ip: req.ip });
   res.json({ ok: true });
 });
 

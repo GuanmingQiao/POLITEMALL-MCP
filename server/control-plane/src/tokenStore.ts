@@ -3,11 +3,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { config } from "./config.js";
 import { decrypt, encrypt } from "./crypto.js";
+import type { School } from "./d2l.js";
 
 interface TokenRecord {
   createdAt: string;
   expiresAt: string;
-  encryptedCookieHeader: string | null;
+  encryptedCookies: Partial<Record<School, string>>;
 }
 
 type TokenStoreFile = Record<string, TokenRecord>;
@@ -54,8 +55,9 @@ function withWrite<T>(fn: (store: TokenStoreFile) => T): Promise<T> {
   return result;
 }
 
-// No identity is ever attached to a token — it's purely a random key into an
-// encrypted cookie blob. Losing it means generating a new one and reconnecting.
+// No identity is ever attached to a token — it's purely a random key into a set of
+// encrypted per-school cookie blobs. Losing it means generating a new one and
+// reconnecting.
 export function issueToken(): Promise<string> {
   const token = randomBytes(32).toString("hex");
   const now = new Date();
@@ -64,7 +66,7 @@ export function issueToken(): Promise<string> {
     store[hashToken(token)] = {
       createdAt: now.toISOString(),
       expiresAt: expires.toISOString(),
-      encryptedCookieHeader: null,
+      encryptedCookies: {},
     };
     return token;
   });
@@ -81,17 +83,24 @@ export function isValidToken(token: string): boolean {
   return validRecord(token) !== undefined;
 }
 
-export async function saveCookieHeader(token: string, cookieHeader: string): Promise<boolean> {
+export async function saveCookieHeader(token: string, school: School, cookieHeader: string): Promise<boolean> {
   return withWrite((store) => {
     const record = store[hashToken(token)];
     if (!record || new Date(record.expiresAt).getTime() < Date.now()) return false;
-    record.encryptedCookieHeader = encrypt(cookieHeader);
+    record.encryptedCookies[school] = encrypt(cookieHeader);
     return true;
   });
 }
 
-export function getCookieHeader(token: string): string | null {
+export function getCookieHeader(token: string, school: School): string | null {
   const record = validRecord(token);
-  if (!record?.encryptedCookieHeader) return null;
-  return decrypt(record.encryptedCookieHeader);
+  const encrypted = record?.encryptedCookies[school];
+  if (!encrypted) return null;
+  return decrypt(encrypted);
+}
+
+export function connectedSchools(token: string): School[] {
+  const record = validRecord(token);
+  if (!record) return [];
+  return Object.keys(record.encryptedCookies) as School[];
 }

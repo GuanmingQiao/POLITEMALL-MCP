@@ -1,17 +1,42 @@
-const LMS_HOST = "lms.polite.edu.sg";
-const BASE_URL = `https://${LMS_HOST}`;
 const LE_VERSION = "1.9";
 const LP_VERSION = "1.9";
 
+export type School = "politemall" | "nyp";
+
+export const SCHOOL_HOSTS: Record<School, string> = {
+  politemall: "lms.polite.edu.sg",
+  nyp: "nyplms.polite.edu.sg",
+};
+
 export class SessionExpiredError extends Error {}
 
-async function apiGet<T>(path: string, cookieHeader: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+async function apiGet<T>(school: School, path: string, cookieHeader: string): Promise<T> {
+  const res = await fetch(`https://${SCHOOL_HOSTS[school]}${path}`, {
     headers: { Cookie: cookieHeader, Accept: "application/json" },
     redirect: "manual",
   });
   if (res.status === 200) return (await res.json()) as T;
   throw new SessionExpiredError(`Request to ${path} failed with status ${res.status}`);
+}
+
+// Course IDs are only unique within a single D2L tenant, and politemall/nyp are
+// independent tenants with independent ID spaces — so every course ID exposed by
+// a tool is a "school:numericId" composite, disambiguating which tenant (and
+// therefore which stored cookie) a later tool call should use.
+export function formatCourseId(school: School, numericId: number): string {
+  return `${school}:${numericId}`;
+}
+
+export function parseCourseId(courseId: string): { school: School; numericId: number } {
+  const [school, idStr] = courseId.split(":");
+  if (school !== "politemall" && school !== "nyp") {
+    throw new Error(`Unknown school in courseId "${courseId}"`);
+  }
+  const numericId = Number(idStr);
+  if (!Number.isFinite(numericId)) {
+    throw new Error(`Invalid courseId "${courseId}"`);
+  }
+  return { school, numericId };
 }
 
 interface EnrollmentItem {
@@ -23,7 +48,8 @@ interface MyEnrollmentsPage {
   Items: EnrollmentItem[];
 }
 export interface Course {
-  orgUnitId: number;
+  courseId: string;
+  school: School;
   name: string;
   code: string;
   isActive: boolean;
@@ -32,17 +58,18 @@ export interface Course {
   lastAccessed: string | null;
 }
 
-export async function listCourses(cookieHeader: string): Promise<Course[]> {
+export async function listCourses(school: School, cookieHeader: string): Promise<Course[]> {
   const courses: Course[] = [];
   let bookmark: string | null = null;
   for (let page = 0; page < 10; page++) {
     const qs = new URLSearchParams({ orgUnitTypeId: "3" });
     if (bookmark) qs.set("bookmark", bookmark);
-    const data = await apiGet<MyEnrollmentsPage>(`/d2l/api/lp/${LP_VERSION}/enrollments/myenrollments/?${qs}`, cookieHeader);
+    const data = await apiGet<MyEnrollmentsPage>(school, `/d2l/api/lp/${LP_VERSION}/enrollments/myenrollments/?${qs}`, cookieHeader);
     for (const item of data.Items) {
       if (item.OrgUnit.Type.Id !== 3) continue;
       courses.push({
-        orgUnitId: item.OrgUnit.Id,
+        courseId: formatCourseId(school, item.OrgUnit.Id),
+        school,
         name: item.OrgUnit.Name,
         code: item.OrgUnit.Code,
         isActive: item.Access.IsActive,
@@ -57,8 +84,8 @@ export async function listCourses(cookieHeader: string): Promise<Course[]> {
   return courses;
 }
 
-export async function getCourseContent(cookieHeader: string, courseId: number): Promise<unknown> {
-  return apiGet(`/d2l/api/le/${LE_VERSION}/${courseId}/content/toc`, cookieHeader);
+export async function getCourseContent(school: School, cookieHeader: string, numericId: number): Promise<unknown> {
+  return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/content/toc`, cookieHeader);
 }
 
 interface GradeDefinition {
@@ -84,10 +111,10 @@ export interface GradeItem {
   lastModified: string | null;
 }
 
-export async function getGrades(cookieHeader: string, courseId: number): Promise<GradeItem[]> {
+export async function getGrades(school: School, cookieHeader: string, numericId: number): Promise<GradeItem[]> {
   const [definitions, values] = await Promise.all([
-    apiGet<GradeDefinition[]>(`/d2l/api/le/${LE_VERSION}/${courseId}/grades/`, cookieHeader),
-    apiGet<GradeValue[]>(`/d2l/api/le/${LE_VERSION}/${courseId}/grades/values/myGradeValues/`, cookieHeader),
+    apiGet<GradeDefinition[]>(school, `/d2l/api/le/${LE_VERSION}/${numericId}/grades/`, cookieHeader),
+    apiGet<GradeValue[]>(school, `/d2l/api/le/${LE_VERSION}/${numericId}/grades/values/myGradeValues/`, cookieHeader),
   ]);
   const valueById = new Map(values.map((v) => [v.GradeObjectIdentifier, v]));
   return definitions
@@ -106,18 +133,18 @@ export async function getGrades(cookieHeader: string, courseId: number): Promise
     });
 }
 
-export async function getAnnouncements(cookieHeader: string, courseId: number): Promise<unknown> {
-  return apiGet(`/d2l/api/le/${LE_VERSION}/${courseId}/news/`, cookieHeader);
+export async function getAnnouncements(school: School, cookieHeader: string, numericId: number): Promise<unknown> {
+  return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/news/`, cookieHeader);
 }
 
-export async function getCalendarEvents(cookieHeader: string, courseId: number): Promise<unknown> {
-  return apiGet(`/d2l/api/le/${LE_VERSION}/${courseId}/calendar/events/`, cookieHeader);
+export async function getCalendarEvents(school: School, cookieHeader: string, numericId: number): Promise<unknown> {
+  return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/calendar/events/`, cookieHeader);
 }
 
-export async function getAssignments(cookieHeader: string, courseId: number): Promise<unknown> {
-  return apiGet(`/d2l/api/le/${LE_VERSION}/${courseId}/dropbox/folders/`, cookieHeader);
+export async function getAssignments(school: School, cookieHeader: string, numericId: number): Promise<unknown> {
+  return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/dropbox/folders/`, cookieHeader);
 }
 
-export async function whoami(cookieHeader: string): Promise<unknown> {
-  return apiGet(`/d2l/api/lp/${LP_VERSION}/users/whoami`, cookieHeader);
+export async function whoami(school: School, cookieHeader: string): Promise<unknown> {
+  return apiGet(school, `/d2l/api/lp/${LP_VERSION}/users/whoami`, cookieHeader);
 }
