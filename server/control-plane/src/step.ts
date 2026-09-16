@@ -93,6 +93,58 @@ export async function listCourses(cookieHeader: string): Promise<StepCourse[]> {
   return courses;
 }
 
+interface CatalogueItem {
+  courseId: string;
+  courseName: string;
+  courseCode: string;
+  courseCategory: string;
+  courseType?: string;
+  courseStart: string | null;
+  courseEnd: string | null;
+}
+
+export interface CatalogueCourse {
+  courseId: string;
+  name: string;
+  code: string;
+  category: string;
+  type: string | null;
+  startTime: string | null;
+  endTime: string | null;
+}
+
+// The public course catalog — unlike listCourses (your enrollments), this returns
+// every course STEP offers, matching what the "All courses" browse/search page
+// shows. searchContent narrows by keyword; omit it to browse everything.
+export async function searchCourses(cookieHeader: string, searchContent = "", maxResults = 100): Promise<CatalogueCourse[]> {
+  const courses: CatalogueCourse[] = [];
+  for (let pageIndex = 1; pageIndex <= 10 && courses.length < maxResults; pageIndex++) {
+    const page = unwrap(
+      await apiPost<Envelope<PagedResult<CatalogueItem>>>("/studentapi/api/v1/coursecatalogue/paging", cookieHeader, {
+        pageIndex,
+        pageSize: 50,
+        searchContent,
+        filters: {},
+        isAscending: false,
+        isInterestedPage: false,
+      })
+    );
+    for (const item of page.items) {
+      courses.push({
+        courseId: item.courseId,
+        name: item.courseName,
+        code: item.courseCode,
+        category: item.courseCategory,
+        type: item.courseType ?? null,
+        startTime: item.courseStart,
+        endTime: item.courseEnd,
+      });
+    }
+    if (pageIndex >= page.pageCount) break;
+  }
+  return courses.slice(0, maxResults);
+}
+
 interface ModuleDetail {
   id: string;
   moduleName: string;

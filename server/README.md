@@ -9,13 +9,22 @@ Covers three separate systems, all under the same SSO but each with its own
 independent session cookie — a token can hold a cookie for any combination:
 
 - **POLITEMall** (`lms.polite.edu.sg`) and **NYP** (`nyplms.polite.edu.sg`) — two
-  D2L Brightspace tenants (course content, grades, assignments). `list_courses`
-  merges results across whichever of these two are connected.
+  D2L Brightspace tenants. `list_courses` and `get_due_items` merge results
+  across whichever of these two are connected; everything else
+  (`get_course_content`, `get_grades`, `get_announcements`, `get_calendar_events`,
+  `get_assignments`, `get_quizzes`, `get_quiz_attempts`, `get_discussion_forums`,
+  `get_discussion_topics`, `get_discussion_posts`, `get_classlist`, `get_surveys`,
+  `get_survey_attempts`, `get_groups`) is scoped to a single `courseId`, which
+  encodes which of the two schools it belongs to.
 - **STEP** (`stms.polite.edu.sg`) — a separate SkillsFuture/short-course
   enrollment and attendance system, not Brightspace. Different tools
-  (`list_step_courses`, `get_step_course_detail`, `get_step_timetable`,
-  `get_step_announcements`) since it's a different data model (training records,
-  attendance, certification — not course content/grades).
+  (`list_step_courses`, `search_step_courses`, `get_step_course_detail`,
+  `get_step_timetable`, `get_step_announcements`) since it's a different data
+  model (training records, attendance, certification — not course
+  content/grades). `search_step_courses` browses/searches STEP's full public
+  catalog (thousands of courses), not just your own enrollments — there's no
+  equivalent for POLITEMall/NYP, since Valence has no course-discovery API for
+  courses you're not enrolled in (by design, not a limitation of ours).
 
 **Live server:** `https://13-212-182-50.sslip.io`
 

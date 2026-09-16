@@ -21,6 +21,24 @@ async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: string):
   throw new SessionExpiredError(`Request to ${path} failed with status ${res.status}`);
 }
 
+interface ObjectListPage<T> {
+  Next: string | null;
+  Objects: T[];
+}
+
+// Valence's ObjectListPage convention (distinct from the Bookmark-based paging
+// enrollments/myenrollments uses) — follow the opaque "Next" URL until exhausted.
+async function fetchAllPages<T>(school: D2LSchool, path: string, cookieHeader: string): Promise<T[]> {
+  const items: T[] = [];
+  let next: string | null = path;
+  for (let page = 0; page < 20 && next; page++) {
+    const page_: ObjectListPage<T> = await apiGet(school, next, cookieHeader);
+    items.push(...page_.Objects);
+    next = page_.Next ? page_.Next.replace(`https://${SCHOOL_HOSTS[school]}`, "") : null;
+  }
+  return items;
+}
+
 // Course IDs are only unique within a single D2L tenant, and politemall/nyp are
 // independent tenants with independent ID spaces — so every course ID exposed by
 // a tool is a "school:numericId" composite, disambiguating which tenant (and
@@ -149,4 +167,196 @@ export async function getAssignments(school: D2LSchool, cookieHeader: string, nu
 
 export async function whoami(school: D2LSchool, cookieHeader: string): Promise<unknown> {
   return apiGet(school, `/d2l/api/lp/${LP_VERSION}/users/whoami`, cookieHeader);
+}
+
+// --- Quizzes ---
+
+interface QuizReadData {
+  QuizId: number;
+  Name: string;
+  DueDate: string | null;
+  StartDate: string | null;
+  EndDate: string | null;
+  AttemptsAllowed: unknown;
+}
+
+export async function listQuizzes(school: D2LSchool, cookieHeader: string, numericId: number): Promise<QuizReadData[]> {
+  return fetchAllPages(school, `/d2l/api/le/${LE_VERSION}/${numericId}/quizzes/`, cookieHeader);
+}
+
+interface QuizAttemptData {
+  AttemptId: number;
+  QuizId: number;
+  Score: number | null;
+  Started: string;
+  Completed: string | null;
+  IsPublished: boolean;
+}
+
+export async function getQuizAttempts(
+  school: D2LSchool,
+  cookieHeader: string,
+  numericId: number,
+  quizId: number
+): Promise<QuizAttemptData[]> {
+  return fetchAllPages(school, `/d2l/api/le/${LE_VERSION}/${numericId}/quizzes/${quizId}/attempts/`, cookieHeader);
+}
+
+// --- Discussions ---
+
+interface Forum {
+  ForumId: number;
+  Name: string;
+}
+interface Topic {
+  TopicId: number;
+  ForumId: number;
+  Name: string;
+}
+interface Post {
+  PostId: number;
+  Subject: string;
+  Message: { Html: string; Text: string };
+  PostingUserDisplayName: string;
+  DatePosted: string;
+}
+
+export async function listDiscussionForums(school: D2LSchool, cookieHeader: string, numericId: number): Promise<Forum[]> {
+  return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/discussions/forums/`, cookieHeader);
+}
+
+export async function listDiscussionTopics(
+  school: D2LSchool,
+  cookieHeader: string,
+  numericId: number,
+  forumId: number
+): Promise<Topic[]> {
+  return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/discussions/forums/${forumId}/topics/`, cookieHeader);
+}
+
+export async function listDiscussionPosts(
+  school: D2LSchool,
+  cookieHeader: string,
+  numericId: number,
+  forumId: number,
+  topicId: number
+): Promise<Post[]> {
+  return apiGet(
+    school,
+    `/d2l/api/le/${LE_VERSION}/${numericId}/discussions/forums/${forumId}/topics/${topicId}/posts/`,
+    cookieHeader
+  );
+}
+
+// --- Classlist ---
+
+interface ClasslistUser {
+  Identifier: string;
+  DisplayName: string;
+  Username: string | null;
+  Email: string | null;
+  RoleId: number | null;
+  ClasslistRoleDisplayName: string;
+}
+
+export async function getClasslist(school: D2LSchool, cookieHeader: string, numericId: number): Promise<ClasslistUser[]> {
+  return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/classlist/`, cookieHeader);
+}
+
+// --- Surveys ---
+
+interface SurveyReadData {
+  SurveyId: number;
+  Name: string;
+  IsActive: boolean;
+  StartDate: string | null;
+  EndDate: string | null;
+}
+
+export async function listSurveys(school: D2LSchool, cookieHeader: string, numericId: number): Promise<SurveyReadData[]> {
+  return fetchAllPages(school, `/d2l/api/le/${LE_VERSION}/${numericId}/surveys/`, cookieHeader);
+}
+
+interface SurveyAttemptData {
+  AttemptId: number;
+  SurveyId: number;
+  AttemptNumber: number;
+  Started: string;
+  Completed: string | null;
+}
+
+export async function getSurveyAttempts(
+  school: D2LSchool,
+  cookieHeader: string,
+  numericId: number,
+  surveyId: number
+): Promise<SurveyAttemptData[]> {
+  return fetchAllPages(school, `/d2l/api/le/${LE_VERSION}/${numericId}/surveys/${surveyId}/attempts/`, cookieHeader);
+}
+
+// --- Groups ---
+
+interface GroupCategoryData {
+  GroupCategoryId: number;
+  Name: string;
+  Groups: number[];
+}
+interface GroupData {
+  GroupId: number;
+  Name: string;
+  Code: string;
+  Enrollments: number[];
+}
+export interface GroupCategoryWithGroups {
+  groupCategoryId: number;
+  name: string;
+  groups: { groupId: number; name: string; code: string; memberCount: number }[];
+}
+
+export async function getGroups(school: D2LSchool, cookieHeader: string, numericId: number): Promise<GroupCategoryWithGroups[]> {
+  const categories = await apiGet<GroupCategoryData[]>(
+    school,
+    `/d2l/api/lp/${LP_VERSION}/${numericId}/groupcategories/`,
+    cookieHeader
+  );
+  const result: GroupCategoryWithGroups[] = [];
+  for (const category of categories) {
+    const groups = await apiGet<GroupData[]>(
+      school,
+      `/d2l/api/lp/${LP_VERSION}/${numericId}/groupcategories/${category.GroupCategoryId}/groups/`,
+      cookieHeader
+    );
+    result.push({
+      groupCategoryId: category.GroupCategoryId,
+      name: category.Name,
+      groups: groups.map((g) => ({ groupId: g.GroupId, name: g.Name, code: g.Code, memberCount: g.Enrollments.length })),
+    });
+  }
+  return result;
+}
+
+// --- Due / completion tracking (cross-course, per school) ---
+
+export interface DueItem {
+  school: D2LSchool;
+  orgUnitId: string;
+  itemName: string;
+  dueDate: string | null;
+  dateCompleted: string | null;
+}
+
+export async function getDueItems(school: D2LSchool, cookieHeader: string): Promise<DueItem[]> {
+  const items = await fetchAllPages<{
+    OrgUnitId: string;
+    ItemName: string;
+    DueDate: string | null;
+    DateCompleted: string | null;
+  }>(school, `/d2l/api/le/${LE_VERSION}/content/myItems/completions/due/`, cookieHeader);
+  return items.map((i) => ({
+    school,
+    orgUnitId: i.OrgUnitId,
+    itemName: i.ItemName,
+    dueDate: i.DueDate,
+    dateCompleted: i.DateCompleted,
+  }));
 }

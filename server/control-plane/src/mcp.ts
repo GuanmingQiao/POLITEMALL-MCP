@@ -157,6 +157,124 @@ export function buildMcpServerForToken(token: string): McpServer {
   );
 
   server.registerTool(
+    "get_due_items",
+    {
+      title: "Get due items",
+      description:
+        "Get content items with due dates across every connected D2L school (POLITEMall and/or NYP) and every course, in one call — completed and pending. dateCompleted is null for items not yet done.",
+      inputSchema: {},
+    },
+    async () => {
+      const { results, warnings } = await runAcrossD2LSchools(token, (school, cookieHeader) => d2l.getDueItems(school, cookieHeader));
+      return toolResult({ dueItems: results, warnings: warnings.length ? warnings : undefined });
+    }
+  );
+
+  server.registerTool(
+    "get_quizzes",
+    {
+      title: "Get quizzes",
+      description: "List quizzes for a D2L course (name, due date, availability window).",
+      inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
+    },
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.listQuizzes(school, c, id))
+  );
+
+  server.registerTool(
+    "get_quiz_attempts",
+    {
+      title: "Get quiz attempts",
+      description: "Get your attempt history (score, started/completed times) for a specific quiz.",
+      inputSchema: {
+        courseId: z.string().describe("The course's courseId, from list_courses"),
+        quizId: z.number().describe("The quiz's QuizId, from get_quizzes"),
+      },
+    },
+    async ({ courseId, quizId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getQuizAttempts(school, c, id, quizId))
+  );
+
+  server.registerTool(
+    "get_discussion_forums",
+    {
+      title: "Get discussion forums",
+      description: "List discussion forums for a D2L course.",
+      inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
+    },
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.listDiscussionForums(school, c, id))
+  );
+
+  server.registerTool(
+    "get_discussion_topics",
+    {
+      title: "Get discussion topics",
+      description: "List topics within a discussion forum.",
+      inputSchema: {
+        courseId: z.string().describe("The course's courseId, from list_courses"),
+        forumId: z.number().describe("The forum's ForumId, from get_discussion_forums"),
+      },
+    },
+    async ({ courseId, forumId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.listDiscussionTopics(school, c, id, forumId))
+  );
+
+  server.registerTool(
+    "get_discussion_posts",
+    {
+      title: "Get discussion posts",
+      description: "List posts (with content and author) within a discussion topic.",
+      inputSchema: {
+        courseId: z.string().describe("The course's courseId, from list_courses"),
+        forumId: z.number().describe("The forum's ForumId, from get_discussion_forums"),
+        topicId: z.number().describe("The topic's TopicId, from get_discussion_topics"),
+      },
+    },
+    async ({ courseId, forumId, topicId }) =>
+      runForD2LCourse(token, courseId, (school, c, id) => d2l.listDiscussionPosts(school, c, id, forumId, topicId))
+  );
+
+  server.registerTool(
+    "get_classlist",
+    {
+      title: "Get classlist",
+      description: "List the students/instructors enrolled in a D2L course.",
+      inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
+    },
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getClasslist(school, c, id))
+  );
+
+  server.registerTool(
+    "get_surveys",
+    {
+      title: "Get surveys",
+      description: "List surveys for a D2L course.",
+      inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
+    },
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.listSurveys(school, c, id))
+  );
+
+  server.registerTool(
+    "get_survey_attempts",
+    {
+      title: "Get survey attempts",
+      description: "Get your attempt history for a specific survey.",
+      inputSchema: {
+        courseId: z.string().describe("The course's courseId, from list_courses"),
+        surveyId: z.number().describe("The survey's SurveyId, from get_surveys"),
+      },
+    },
+    async ({ courseId, surveyId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getSurveyAttempts(school, c, id, surveyId))
+  );
+
+  server.registerTool(
+    "get_groups",
+    {
+      title: "Get groups",
+      description: "List group categories and groups (with member counts) for a D2L course.",
+      inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
+    },
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getGroups(school, c, id))
+  );
+
+  server.registerTool(
     "list_step_courses",
     {
       title: "List STEP courses",
@@ -165,6 +283,20 @@ export function buildMcpServerForToken(token: string): McpServer {
       inputSchema: {},
     },
     async () => runStep(token, (c) => step.listCourses(c))
+  );
+
+  server.registerTool(
+    "search_step_courses",
+    {
+      title: "Search STEP course catalog",
+      description:
+        "Search or browse STEP's full public course catalog (thousands of SkillsFuture/short courses across all polys/ITE) — not just your own enrollments. Omit query to browse the most recent listings.",
+      inputSchema: {
+        query: z.string().optional().describe("Keyword to search course names/descriptions for, e.g. \"AI\". Omit to browse without filtering."),
+        maxResults: z.number().optional().describe("Max courses to return (default 100)"),
+      },
+    },
+    async ({ query, maxResults }) => runStep(token, (c) => step.searchCourses(c, query ?? "", maxResults ?? 100))
   );
 
   server.registerTool(
