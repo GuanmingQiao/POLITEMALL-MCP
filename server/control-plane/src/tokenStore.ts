@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { config } from "./config.js";
 import { decrypt, encrypt } from "./crypto.js";
-import type { School } from "./d2l.js";
+import type { School } from "./schools.js";
 
 interface TokenRecord {
   createdAt: string;

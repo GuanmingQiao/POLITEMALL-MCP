@@ -42,13 +42,13 @@ recovery, but you'll need to update your MCP client's config with the new one.</
 </div>
 
 <h2>Connect (or refresh) your session(s)</h2>
-<p>POLITEMall and NYP's own Brightspace are <strong>separate logins with separate
-cookies</strong>, even though they share the same SSO — connect whichever you need
-(both is fine, tools merge results automatically). Both only work from the
-polytechnic corporate network/VPN, so this has to happen in your own regular
-browser, not on this page.</p>
+<p>POLITEMall, NYP's own Brightspace, and STEP are <strong>three separate logins
+with separate cookies</strong>, even though they share the same SSO — connect
+whichever you need (any combination is fine, tools merge results automatically).
+All three only work from the polytechnic corporate network/VPN, so this has to
+happen in your own regular browser, not on this page.</p>
 <ol>
-  <li>In a normal browser tab, log in as you usually do — at <a href="https://lms.polite.edu.sg/d2l/home" target="_blank">lms.polite.edu.sg</a> for POLITEMall, and/or <a href="https://nyplms.polite.edu.sg/d2l/home" target="_blank">nyplms.polite.edu.sg</a> for NYP's own courses.</li>
+  <li>In a normal browser tab, log in as you usually do — at <a href="https://lms.polite.edu.sg/d2l/home" target="_blank">lms.polite.edu.sg</a> for POLITEMall, <a href="https://nyplms.polite.edu.sg/d2l/home" target="_blank">nyplms.polite.edu.sg</a> for NYP's own courses, and/or <a href="https://stms.polite.edu.sg/" target="_blank">stms.polite.edu.sg</a> (STEP) for SkillsFuture/short-course enrollments.</li>
   <li>Open DevTools (<code>F12</code>) → <strong>Network</strong> tab, then reload the page.</li>
   <li>Click any request to that same domain, open its <strong>Request Headers</strong>, and copy the full value of the <code>Cookie</code> header (the whole string, e.g. <code>d2lSessionVal=...; d2lSecureSessionVal=...</code>).</li>
   <li>Paste it into the matching field below along with your token, then submit. Leave a field blank to skip that school.</li>
@@ -63,6 +63,9 @@ browser, not on this page.</p>
 
 <label for="cookieNyp">Cookie header from nyplms.polite.edu.sg <span class="hint">(NYP, optional)</span></label>
 <input id="cookieNyp" type="password" autocomplete="off" placeholder="d2lSessionVal=...; d2lSecureSessionVal=...">
+
+<label for="cookieStep">Cookie header from stms.polite.edu.sg <span class="hint">(STEP, optional)</span></label>
+<input id="cookieStep" type="password" autocomplete="off" placeholder="cookie name=value pairs...">
 
 <button id="submit">Connect</button>
 <div id="status"></div>
@@ -89,11 +92,12 @@ document.getElementById('submit').addEventListener('click', async () => {
   const token = document.getElementById('token').value.trim();
   const politemall = document.getElementById('cookiePolitemall').value.trim();
   const nyp = document.getElementById('cookieNyp').value.trim();
+  const stepCookie = document.getElementById('cookieStep').value.trim();
   const status = document.getElementById('status');
   status.className = '';
   status.style.display = 'none';
 
-  if (!token || (!politemall && !nyp)) {
+  if (!token || (!politemall && !nyp && !stepCookie)) {
     status.textContent = 'Token and at least one cookie field are required.';
     status.className = 'err';
     status.style.display = 'block';
@@ -104,6 +108,7 @@ document.getElementById('submit').addEventListener('click', async () => {
     const results = [];
     if (politemall) results.push(['POLITEMall', await syncSchool(token, 'politemall', politemall)]);
     if (nyp) results.push(['NYP', await syncSchool(token, 'nyp', nyp)]);
+    if (stepCookie) results.push(['STEP', await syncSchool(token, 'step', stepCookie)]);
 
     const failed = results.filter(([, ok]) => !ok).map(([name]) => name);
     if (failed.length === 0) {
@@ -111,6 +116,7 @@ document.getElementById('submit').addEventListener('click', async () => {
       status.className = 'ok';
       document.getElementById('cookiePolitemall').value = '';
       document.getElementById('cookieNyp').value = '';
+      document.getElementById('cookieStep').value = '';
     } else {
       status.textContent = failed.join(' and ') + ' failed to connect. Check your token and try again.';
       status.className = 'err';

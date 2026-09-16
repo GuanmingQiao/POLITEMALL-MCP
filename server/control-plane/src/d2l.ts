@@ -1,16 +1,18 @@
+import type { School } from "./schools.js";
+
 const LE_VERSION = "1.9";
 const LP_VERSION = "1.9";
 
-export type School = "politemall" | "nyp";
+export type D2LSchool = Extract<School, "politemall" | "nyp">;
 
-export const SCHOOL_HOSTS: Record<School, string> = {
+export const SCHOOL_HOSTS: Record<D2LSchool, string> = {
   politemall: "lms.polite.edu.sg",
   nyp: "nyplms.polite.edu.sg",
 };
 
 export class SessionExpiredError extends Error {}
 
-async function apiGet<T>(school: School, path: string, cookieHeader: string): Promise<T> {
+async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: string): Promise<T> {
   const res = await fetch(`https://${SCHOOL_HOSTS[school]}${path}`, {
     headers: { Cookie: cookieHeader, Accept: "application/json" },
     redirect: "manual",
@@ -23,11 +25,11 @@ async function apiGet<T>(school: School, path: string, cookieHeader: string): Pr
 // independent tenants with independent ID spaces — so every course ID exposed by
 // a tool is a "school:numericId" composite, disambiguating which tenant (and
 // therefore which stored cookie) a later tool call should use.
-export function formatCourseId(school: School, numericId: number): string {
+export function formatCourseId(school: D2LSchool, numericId: number): string {
   return `${school}:${numericId}`;
 }
 
-export function parseCourseId(courseId: string): { school: School; numericId: number } {
+export function parseCourseId(courseId: string): { school: D2LSchool; numericId: number } {
   const [school, idStr] = courseId.split(":");
   if (school !== "politemall" && school !== "nyp") {
     throw new Error(`Unknown school in courseId "${courseId}"`);
@@ -49,7 +51,7 @@ interface MyEnrollmentsPage {
 }
 export interface Course {
   courseId: string;
-  school: School;
+  school: D2LSchool;
   name: string;
   code: string;
   isActive: boolean;
@@ -58,7 +60,7 @@ export interface Course {
   lastAccessed: string | null;
 }
 
-export async function listCourses(school: School, cookieHeader: string): Promise<Course[]> {
+export async function listCourses(school: D2LSchool, cookieHeader: string): Promise<Course[]> {
   const courses: Course[] = [];
   let bookmark: string | null = null;
   for (let page = 0; page < 10; page++) {
@@ -84,7 +86,7 @@ export async function listCourses(school: School, cookieHeader: string): Promise
   return courses;
 }
 
-export async function getCourseContent(school: School, cookieHeader: string, numericId: number): Promise<unknown> {
+export async function getCourseContent(school: D2LSchool, cookieHeader: string, numericId: number): Promise<unknown> {
   return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/content/toc`, cookieHeader);
 }
 
@@ -111,7 +113,7 @@ export interface GradeItem {
   lastModified: string | null;
 }
 
-export async function getGrades(school: School, cookieHeader: string, numericId: number): Promise<GradeItem[]> {
+export async function getGrades(school: D2LSchool, cookieHeader: string, numericId: number): Promise<GradeItem[]> {
   const [definitions, values] = await Promise.all([
     apiGet<GradeDefinition[]>(school, `/d2l/api/le/${LE_VERSION}/${numericId}/grades/`, cookieHeader),
     apiGet<GradeValue[]>(school, `/d2l/api/le/${LE_VERSION}/${numericId}/grades/values/myGradeValues/`, cookieHeader),
@@ -133,18 +135,18 @@ export async function getGrades(school: School, cookieHeader: string, numericId:
     });
 }
 
-export async function getAnnouncements(school: School, cookieHeader: string, numericId: number): Promise<unknown> {
+export async function getAnnouncements(school: D2LSchool, cookieHeader: string, numericId: number): Promise<unknown> {
   return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/news/`, cookieHeader);
 }
 
-export async function getCalendarEvents(school: School, cookieHeader: string, numericId: number): Promise<unknown> {
+export async function getCalendarEvents(school: D2LSchool, cookieHeader: string, numericId: number): Promise<unknown> {
   return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/calendar/events/`, cookieHeader);
 }
 
-export async function getAssignments(school: School, cookieHeader: string, numericId: number): Promise<unknown> {
+export async function getAssignments(school: D2LSchool, cookieHeader: string, numericId: number): Promise<unknown> {
   return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/dropbox/folders/`, cookieHeader);
 }
 
-export async function whoami(school: School, cookieHeader: string): Promise<unknown> {
+export async function whoami(school: D2LSchool, cookieHeader: string): Promise<unknown> {
   return apiGet(school, `/d2l/api/lp/${LP_VERSION}/users/whoami`, cookieHeader);
 }

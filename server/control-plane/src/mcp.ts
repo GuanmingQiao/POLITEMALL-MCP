@@ -2,10 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "./config.js";
 import * as d2l from "./d2l.js";
-import { SessionExpiredError, type School } from "./d2l.js";
+import { SessionExpiredError as D2LSessionExpiredError, type D2LSchool } from "./d2l.js";
+import * as step from "./step.js";
+import { SessionExpiredError as StepSessionExpiredError } from "./step.js";
 import { connectedSchools, getCookieHeader } from "./tokenStore.js";
 
-const SCHOOLS: School[] = ["politemall", "nyp"];
+const D2L_SCHOOLS: D2LSchool[] = ["politemall", "nyp"];
 
 function toolResult(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
@@ -19,14 +21,15 @@ function connectUrl(): string {
   return `${config.publicOrigin}/connect`;
 }
 
-// Runs fn against every school the token has a saved cookie for, merging results.
-// A single school's session being expired/never-connected doesn't fail the whole
-// call — it's reported alongside whatever data the other school(s) returned.
-async function runAcrossSchools<T>(
+// Runs fn against every D2L school (politemall/nyp) the token has a saved cookie
+// for, merging results. A single school's session being expired/never-connected
+// doesn't fail the whole call — it's reported alongside whatever data the other
+// school(s) returned.
+async function runAcrossD2LSchools<T>(
   token: string,
-  fn: (school: School, cookieHeader: string) => Promise<T[]>
+  fn: (school: D2LSchool, cookieHeader: string) => Promise<T[]>
 ): Promise<{ results: T[]; warnings: string[] }> {
-  const schools = connectedSchools(token);
+  const schools = connectedSchools(token).filter((s): s is D2LSchool => s === "politemall" || s === "nyp");
   if (schools.length === 0) {
     return { results: [], warnings: [`No school connected yet. Connect at least one at ${connectUrl()}.`] };
   }
@@ -39,7 +42,7 @@ async function runAcrossSchools<T>(
     try {
       results.push(...(await fn(school, cookieHeader)));
     } catch (err) {
-      if (err instanceof SessionExpiredError) {
+      if (err instanceof D2LSessionExpiredError) {
         warnings.push(`Your ${school} session expired — reconnect it at ${connectUrl()}.`);
       } else {
         throw err;
@@ -49,9 +52,13 @@ async function runAcrossSchools<T>(
   return { results, warnings };
 }
 
-// Single-course tools resolve which school a "school:numericId" courseId belongs to
-// and use that school's cookie only.
-async function runForCourse<T>(token: string, courseId: string, fn: (school: School, cookieHeader: string, numericId: number) => Promise<T>) {
+// Single-course D2L tools resolve which school a "school:numericId" courseId
+// belongs to and use that school's cookie only.
+async function runForD2LCourse<T>(
+  token: string,
+  courseId: string,
+  fn: (school: D2LSchool, cookieHeader: string, numericId: number) => Promise<T>
+) {
   const { school, numericId } = d2l.parseCourseId(courseId);
   const cookieHeader = getCookieHeader(token, school);
   if (!cookieHeader) {
@@ -60,8 +67,23 @@ async function runForCourse<T>(token: string, courseId: string, fn: (school: Sch
   try {
     return toolResult(await fn(school, cookieHeader, numericId));
   } catch (err) {
-    if (err instanceof SessionExpiredError) {
+    if (err instanceof D2LSessionExpiredError) {
       return errorResult(`Your ${school} session expired — reconnect it at ${connectUrl()}.`);
+    }
+    throw err;
+  }
+}
+
+async function runStep<T>(token: string, fn: (cookieHeader: string) => Promise<T>) {
+  const cookieHeader = getCookieHeader(token, "step");
+  if (!cookieHeader) {
+    return errorResult(`Your STEP session isn't connected. Connect it at ${connectUrl()}.`);
+  }
+  try {
+    return toolResult(await fn(cookieHeader));
+  } catch (err) {
+    if (err instanceof StepSessionExpiredError) {
+      return errorResult(`Your STEP session expired — reconnect it at ${connectUrl()}.`);
     }
     throw err;
   }
@@ -75,11 +97,11 @@ export function buildMcpServerForToken(token: string): McpServer {
     {
       title: "List courses",
       description:
-        "List your enrolled courses across every connected school (POLITEMall and/or NYP). courseId values are opaque strings scoped to a school — pass them as-is to the other tools.",
+        "List your enrolled courses across every connected D2L school (POLITEMall and/or NYP). courseId values are opaque strings scoped to a school — pass them as-is to the other D2L tools. For SkillsFuture/STEP enrollments, use list_step_courses instead.",
       inputSchema: {},
     },
     async () => {
-      const { results, warnings } = await runAcrossSchools(token, (school, cookieHeader) => d2l.listCourses(school, cookieHeader));
+      const { results, warnings } = await runAcrossD2LSchools(token, (school, cookieHeader) => d2l.listCourses(school, cookieHeader));
       return toolResult({ courses: results, warnings: warnings.length ? warnings : undefined });
     }
   );
@@ -88,75 +110,131 @@ export function buildMcpServerForToken(token: string): McpServer {
     "get_course_content",
     {
       title: "Get course content",
-      description: "Get the module/topic table of contents for a course.",
+      description: "Get the module/topic table of contents for a D2L course.",
       inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
     },
-    async ({ courseId }) => runForCourse(token, courseId, (school, c, id) => d2l.getCourseContent(school, c, id))
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getCourseContent(school, c, id))
   );
 
   server.registerTool(
     "get_grades",
     {
       title: "Get grades",
-      description: "Get your grade items and scores for a course.",
+      description: "Get your grade items and scores for a D2L course.",
       inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
     },
-    async ({ courseId }) => runForCourse(token, courseId, (school, c, id) => d2l.getGrades(school, c, id))
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getGrades(school, c, id))
   );
 
   server.registerTool(
     "get_announcements",
     {
       title: "Get announcements",
-      description: "Get news/announcements posted in a course.",
+      description: "Get news/announcements posted in a D2L course.",
       inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
     },
-    async ({ courseId }) => runForCourse(token, courseId, (school, c, id) => d2l.getAnnouncements(school, c, id))
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getAnnouncements(school, c, id))
   );
 
   server.registerTool(
     "get_calendar_events",
     {
       title: "Get calendar events",
-      description: "Get calendar events for a course.",
+      description: "Get calendar events for a D2L course.",
       inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
     },
-    async ({ courseId }) => runForCourse(token, courseId, (school, c, id) => d2l.getCalendarEvents(school, c, id))
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getCalendarEvents(school, c, id))
   );
 
   server.registerTool(
     "get_assignments",
     {
       title: "Get assignments",
-      description: "Get dropbox/assignment folders and due dates for a course.",
+      description: "Get dropbox/assignment folders and due dates for a D2L course.",
       inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
     },
-    async ({ courseId }) => runForCourse(token, courseId, (school, c, id) => d2l.getAssignments(school, c, id))
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getAssignments(school, c, id))
+  );
+
+  server.registerTool(
+    "list_step_courses",
+    {
+      title: "List STEP courses",
+      description:
+        "List your enrolled SkillsFuture/short courses on STEP (stms.polite.edu.sg) — a separate system from POLITEMall/NYP D2L, covering training enrollment and attendance rather than course content.",
+      inputSchema: {},
+    },
+    async () => runStep(token, (c) => step.listCourses(c))
+  );
+
+  server.registerTool(
+    "get_step_course_detail",
+    {
+      title: "Get STEP course detail",
+      description: "Get attendance percentage, grade, and enrolment status for a STEP course.",
+      inputSchema: { courseId: z.string().describe("The course's courseId, from list_step_courses") },
+    },
+    async ({ courseId }) => runStep(token, (c) => step.getCourseDetail(c, courseId))
+  );
+
+  server.registerTool(
+    "get_step_timetable",
+    {
+      title: "Get STEP timetable",
+      description: "Get the class session timetable (dates, trainer, room, attendance status) for a STEP course.",
+      inputSchema: { courseId: z.string().describe("The course's courseId, from list_step_courses") },
+    },
+    async ({ courseId }) => runStep(token, (c) => step.getTimetable(c, courseId))
+  );
+
+  server.registerTool(
+    "get_step_announcements",
+    {
+      title: "Get STEP announcements",
+      description: "Get portal-wide announcements from STEP.",
+      inputSchema: {},
+    },
+    async () => runStep(token, (c) => step.getAnnouncements(c))
   );
 
   server.registerTool(
     "whoami",
     {
       title: "Whoami",
-      description: "Get your identity on each connected school (POLITEMall and/or NYP).",
+      description: "Get your identity on each connected school (POLITEMall, NYP, and/or STEP).",
       inputSchema: {},
     },
     async () => {
       const results: Record<string, unknown> = {};
       const warnings: string[] = [];
-      for (const school of SCHOOLS) {
+
+      for (const school of D2L_SCHOOLS) {
         const cookieHeader = getCookieHeader(token, school);
         if (!cookieHeader) continue;
         try {
           results[school] = await d2l.whoami(school, cookieHeader);
         } catch (err) {
-          if (err instanceof SessionExpiredError) {
+          if (err instanceof D2LSessionExpiredError) {
             warnings.push(`Your ${school} session expired — reconnect it at ${connectUrl()}.`);
           } else {
             throw err;
           }
         }
       }
+
+      const stepCookie = getCookieHeader(token, "step");
+      if (stepCookie) {
+        try {
+          results.step = await step.whoami(stepCookie);
+        } catch (err) {
+          if (err instanceof StepSessionExpiredError) {
+            warnings.push(`Your STEP session expired — reconnect it at ${connectUrl()}.`);
+          } else {
+            throw err;
+          }
+        }
+      }
+
       return toolResult({ ...results, warnings: warnings.length ? warnings : undefined });
     }
   );

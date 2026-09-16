@@ -7,9 +7,9 @@ import { renderConnectPage } from "./connectPage.js";
 import { buildMcpServerForToken } from "./mcp.js";
 import { auditLog } from "./auditLog.js";
 import { bearerToken, rateLimitByToken } from "./rateLimit.js";
-import type { School } from "./d2l.js";
+import type { School } from "./schools.js";
 
-const VALID_SCHOOLS: School[] = ["politemall", "nyp"];
+const VALID_SCHOOLS: School[] = ["politemall", "nyp", "step"];
 
 await loadMasterKey();
 
