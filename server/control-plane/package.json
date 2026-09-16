@@ -11,6 +11,7 @@
     "@aws-sdk/client-secrets-manager": "^3.685.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "express": "^4.21.1",
+    "node-html-parser": "^6.1.13",
     "zod": "^3.23.8"
   },
   "devDependencies": {

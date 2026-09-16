@@ -55,12 +55,22 @@ a different data model (training/attendance records, not course content/grades).
 | `get_step_timetable` | Class session timetable — dates, trainer, room, attendance status |
 | `get_step_announcements` | Portal-wide announcements |
 
-There's no course-discovery equivalent for POLITEMall/NYP — Valence (D2L's API)
-has no endpoint for browsing courses you're not enrolled in, for any non-admin
-role. Confirmed by testing directly, not just reading docs: even
-`GET /d2l/api/lp/(version)/courses/(orgUnitId)` for a course we *are* enrolled in
-returns `403 Forbidden`, since it needs a course-management permission regular
-students/staff don't have.
+**POLITEMall public catalog** — a third, separate system again: the marketing
+site at `politemall.polite.edu.sg`, not Brightspace. No login required.
+
+| Tool | What it does |
+|---|---|
+| `search_politemall_catalog` | Search/browse all ~300 modules in the public marketing catalog across every poly/ITE — not your enrollments |
+
+Valence (the actual Brightspace/D2L API) has no endpoint for browsing courses
+you're not enrolled in, for any non-admin role — confirmed by testing directly,
+not just reading docs: even `GET /d2l/api/lp/(version)/courses/(orgUnitId)` for a
+course we *are* enrolled in returns `403 Forbidden`, since it needs a
+course-management permission regular students/staff don't have. The public
+catalog above is the closest available substitute for "what modules exist" —
+but note its `catalogCode` values (e.g. `D-NP-06030001`) are a completely
+different ID space from Brightspace `courseId`s and can't be passed to
+`get_grades`/`get_course_content`/etc.
 
 ## Connecting
 

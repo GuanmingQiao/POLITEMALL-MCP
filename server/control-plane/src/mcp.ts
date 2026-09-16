@@ -6,6 +6,7 @@ import { SessionExpiredError as D2LSessionExpiredError, type D2LSchool } from ".
 import * as step from "./step.js";
 import { SessionExpiredError as StepSessionExpiredError } from "./step.js";
 import { connectedSchools, getCookieHeader } from "./tokenStore.js";
+import * as catalog from "./catalog.js";
 
 const D2L_SCHOOLS: D2LSchool[] = ["politemall", "nyp"];
 
@@ -154,6 +155,20 @@ export function buildMcpServerForToken(token: string): McpServer {
       inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
     },
     async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getAssignments(school, c, id))
+  );
+
+  server.registerTool(
+    "search_politemall_catalog",
+    {
+      title: "Search POLITEMall public catalog",
+      description:
+        "Search or browse the public POLITEMall marketing catalog (politemall.polite.edu.sg) — all ~300 modules offered across the polys/ITE, not just your enrollments. No login required. This is a DIFFERENT system from Brightspace: catalogCode values here are NOT courseIds and can't be passed to get_grades/get_course_content/etc. Use list_courses for your actual enrolled Brightspace courses.",
+      inputSchema: {
+        query: z.string().optional().describe("Keyword to search names/descriptions/institution for, e.g. \"AI\". Omit to browse everything."),
+        maxResults: z.number().optional().describe("Max courses to return (default 100)"),
+      },
+    },
+    async ({ query, maxResults }) => toolResult(await catalog.searchCatalog(query ?? "", maxResults ?? 100))
   );
 
   server.registerTool(
