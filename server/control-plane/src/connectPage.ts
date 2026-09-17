@@ -20,22 +20,10 @@ export function renderConnectPage(): string {
   #status.err { display: block; background: #fdecea; color: #a12622; }
   #tokenBox.show { display: block; }
   #tokenValue { font-family: monospace; font-weight: bold; word-break: break-all; }
-  #extBanner { display: none; margin-bottom: 20px; padding: 12px 14px; border-radius: 4px; background: #e8f0fe; color: #1a3d7c; border: 1px solid #c3d9fb; }
-  #extBanner.show { display: block; }
 </style>
 </head>
 <body>
 <h1>Connect to POLITEMall MCP</h1>
-
-<div id="extBanner">
-  <strong>Opened by the browser extension.</strong> This page's only job right now is
-  to generate a new token — click <strong>Generate a new token</strong> below and it'll
-  be saved back into the extension automatically (no copy-paste needed). You can close
-  this tab once you see the token appear.
-  <p style="margin-bottom:0"><strong>Already have a token?</strong> You don't need this
-  page at all — go back to the extension popup and paste your existing token straight
-  into its token field.</p>
-</div>
 
 <p><strong>Cookie expired and you already have a token?</strong> You don't need a new
 one and you don't need to touch your MCP client's config — just skip to the form
@@ -83,10 +71,6 @@ happen in your own regular browser, not on this page.</p>
 <div id="status"></div>
 
 <script>
-if (new URLSearchParams(location.search).get('ext') === '1') {
-  document.getElementById('extBanner').className = 'show';
-}
-
 document.getElementById('generate').addEventListener('click', async () => {
   const res = await fetch('/signup', { method: 'POST' });
   const data = await res.json();

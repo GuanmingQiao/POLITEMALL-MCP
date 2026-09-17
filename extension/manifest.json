@@ -10,13 +10,6 @@
     "https://stms.polite.edu.sg/*",
     "https://13-212-182-50.sslip.io/*"
   ],
-  "content_scripts": [
-    {
-      "matches": ["https://13-212-182-50.sslip.io/connect*"],
-      "js": ["connectWatcher.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Sync POLITEMall MCP cookies"

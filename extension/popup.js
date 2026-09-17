@@ -17,15 +17,6 @@ serverUrlInput.addEventListener("change", () =>
 );
 tokenInput.addEventListener("change", () => chrome.storage.local.set({ token: tokenInput.value.trim() }));
 
-// If connectWatcher.js (running on the /connect tab we open below) picks up a
-// freshly generated token while this popup isn't open to receive it directly,
-// it saves straight to storage — reflect that here if it changes underneath us.
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.token) {
-    tokenInput.value = changes.token.newValue ?? "";
-  }
-});
-
 function setStatus(text) {
   statusEl.textContent = text;
 }
@@ -72,23 +63,33 @@ document.getElementById("syncAll").addEventListener("click", async () => {
   setStatus(results.join("\n"));
 });
 
-// A direct fetch('/signup') from the extension's own context gets intercepted
-// and rewritten by a corporate web-isolation proxy on some networks (returns
-// an HTML wrapper instead of real JSON) — confirmed true even when the fetch
-// is run inside an injected content script in a real tab. The one thing
-// that's actually reliable is a genuine human click on /connect's own button
-// in a normally-opened tab. So instead of calling the API ourselves, open
-// that page (flagged with ?ext=1 so it explains itself) and let
-// connectWatcher.js pick up the resulting token into storage automatically —
-// no copy-paste needed, just one extra click on the opened tab.
 document.getElementById("generateToken").addEventListener("click", async () => {
   const serverUrl = serverUrlInput.value.trim().replace(/\/$/, "");
   if (!serverUrl) {
     setStatus("Set the server URL first.");
     return;
   }
-  await chrome.tabs.create({ url: `${serverUrl}/connect?ext=1` });
-  setStatus(
-    "Opened a new tab — click \"Generate a new token\" there. Some networks block this extension from calling the API directly, so a real click on that page is needed; the resulting token will be saved back into this extension automatically. Reopen this popup afterward to see it filled in."
-  );
+  try {
+    const res = await fetch(`${serverUrl}/signup`, { method: "POST" });
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Not JSON — on some corporate networks a security proxy intercepts
+      // extension-initiated calls and returns its own HTML instead of the
+      // real API response. See extension/README.md.
+      setStatus(`Unexpected response from ${serverUrl}/signup (HTTP ${res.status}):\n${text.slice(0, 300)}`);
+      return;
+    }
+    if (!res.ok || !data.token) {
+      setStatus(`Signup failed (HTTP ${res.status}): ${text.slice(0, 300)}`);
+      return;
+    }
+    tokenInput.value = data.token;
+    await chrome.storage.local.set({ token: data.token, serverUrl });
+    setStatus("New token generated and saved in this extension.\nIf you use it elsewhere (MCP client config), copy it now — it won't be shown again.");
+  } catch (e) {
+    setStatus("Failed to generate token: " + e.message);
+  }
 });
