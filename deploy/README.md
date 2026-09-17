@@ -26,6 +26,16 @@ cd /opt/politemall-mcp && git pull
 cd server && docker compose up -d --build
 ```
 
+**The container now fails to start if a D2L tenant no longer supports the pinned API
+version** — a startup check (`checkD2lVersionCompatibility`, see `src/d2lVersionCheck.ts`)
+calls each school host's anonymous `/d2l/api/(le|lp)/versions/(version)` route before the
+server binds its port. If a redeploy suddenly won't come up, check `docker compose logs`
+first — a `VersionUnsupportedError` there means `LE_VERSION`/`LP_VERSION` in `d2l.ts` need
+bumping (and the curated tools' response-shaping code should be spot-checked against the new
+version before redeploying), not a deploy-process problem. A `VersionCheckUnreachableError`
+instead means a school host couldn't be reached at all — an infrastructure/DNS problem, not a
+version mismatch.
+
 ## Revoking a token
 
 There's no admin-side revocation UI — tokens are self-issued and self-service by

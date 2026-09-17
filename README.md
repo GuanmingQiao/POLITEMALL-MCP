@@ -31,15 +31,25 @@ course belongs to, so just pass it through as-is to the other tools.
 |---|---|
 | `list_courses` | Your enrolled courses, merged across POLITEMall and/or NYP |
 | `get_due_items` | Content items with due dates across every course and connected school in one call — completed and pending |
+| `get_overdue_items` | D2L-computed overdue items across every course and connected school — a filtered view distinct from `get_due_items` |
+| `get_recent_updates` | Counts of unread/pending activity (discussions, feedback, quizzes) across every course and connected school — a "what's new" feed |
+| `get_my_calendar_events` | Your calendar events across every course and connected school in one call, within a date window (default: 7 days ago to 60 days ahead) |
 | `get_course_content` | Module/topic table of contents for a course |
+| `get_content_topic` | Metadata for a single content topic — a drill-down from `get_course_content` |
+| `get_course_overview` | The course description/overview content (the "Class Overview"/syllabus) |
 | `get_grades` | Grade items and your scores |
+| `get_my_final_grade` | Your calculated/adjusted final grade for a course |
 | `get_announcements` | Course news posts |
 | `get_calendar_events` | Course calendar events |
 | `get_assignments` | Dropbox/assignment folders and due dates |
+| `get_my_dropbox_submission` | Your own submission (files, dates, score, feedback) for an assignment folder |
 | `get_quizzes` / `get_quiz_attempts` | Quiz list, then your attempt scores/status for one |
+| `get_quiz_questions` | Questions defined for a quiz |
 | `get_discussion_forums` / `get_discussion_topics` / `get_discussion_posts` | Drill down forums → topics → actual post content and authors |
 | `get_classlist` | Students/instructors enrolled in a course |
+| `get_rubrics` | Rubric criteria/levels — by `rubricId`, or list rubrics attached to a discussion/dropbox/etc. object |
 | `get_surveys` / `get_survey_attempts` | Survey list, then your attempt history for one |
+| `get_survey_questions` | Questions defined for a survey |
 | `get_groups` | Group categories and groups, with member counts |
 | `whoami` | Your identity on each connected school |
 
@@ -50,8 +60,21 @@ permission error, not their own data, if they call one of these by mistake.
 | Tool | What it does |
 |---|---|
 | `get_class_grades` | Every grade item and score for every student — the gradebook view |
+| `get_all_final_grades` | Every student's calculated/adjusted final grade — the gradebook's final-grade column |
 | `get_quiz_results` | Every student's attempts for a quiz (or one student's, by classlist Identifier) |
+| `get_survey_results` | Every student's attempts for a survey (or one student's, by classlist Identifier) |
 | `get_dropbox_submissions` | Every student's submission for an assignment folder — files, dates, score, grading status |
+
+**POLITEMall/NYP (D2L), long-tail escape hatch** — the tools above are a curated slice of the
+~190 read (`GET`) routes Valence exposes under Learning Environment; the rest are reachable
+without a dedicated tool for each one. Start with the curated tools above — they're
+response-shaped and better-documented. Reach for these only when nothing above covers what you
+need.
+
+| Tool | What it does |
+|---|---|
+| `list_d2l_operations` | Search/browse the full route catalog by category or keyword, to find an operation's key and required parameters |
+| `call_d2l_operation` | Invoke any cataloged operation by key — returns D2L's raw JSON response, unshaped. Course-scoped operations take `courseId`; operations not tied to one course take `school` instead. Read-only; routes that return binary file content are rejected |
 
 **STEP** — `courseId` is a GUID string from `list_step_courses` /
 `search_step_courses`; STEP tools are separate from the D2L ones above since it's

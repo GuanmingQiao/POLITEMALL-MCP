@@ -8,11 +8,15 @@ import { buildMcpServerForToken } from "./mcp.js";
 import { auditLog } from "./auditLog.js";
 import { bearerToken, rateLimitByToken } from "./rateLimit.js";
 import { startKeepAlive } from "./keepAlive.js";
+import { checkD2lVersionCompatibility } from "./d2lVersionCheck.js";
 import type { School } from "./schools.js";
 
 const VALID_SCHOOLS: School[] = ["politemall", "nyp", "step"];
 
 await loadMasterKey();
+// Fail fast at boot if a D2L tenant no longer supports the pinned LE/LP API version, rather
+// than discovering it later as scattered runtime tool-call failures — see design.md Decision 5.
+await checkD2lVersionCompatibility();
 
 const app = express();
 app.set("trust proxy", true);
@@ -62,8 +66,15 @@ app.post("/mcp", rateLimitByToken((req) => bearerToken(req)), async (req, res) =
     return;
   }
 
-  const method = (req.body as { method?: string })?.method;
-  auditLog("mcp_call", { tokenId: tokenLogId(token), method, ip: req.ip });
+  // JSON-RPC envelope method (e.g. "tools/call") tells you a tool was invoked; params.name is
+  // which one — and for the broad-surface call_d2l_operation specifically, its own `operation`
+  // argument is the actual D2L route being hit, which is what matters for audit review of a
+  // tool that can reach ~155 previously-unreachable routes (see design.md Decision 6).
+  const body = req.body as { method?: string; params?: { name?: string; arguments?: Record<string, unknown> } };
+  const method = body?.method;
+  const toolName = method === "tools/call" ? body?.params?.name : undefined;
+  const operation = toolName === "call_d2l_operation" ? body?.params?.arguments?.operation : undefined;
+  auditLog("mcp_call", { tokenId: tokenLogId(token), method, tool: toolName, operation, ip: req.ip });
 
   const server = buildMcpServerForToken(token);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
