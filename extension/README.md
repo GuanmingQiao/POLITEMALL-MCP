@@ -23,9 +23,11 @@ won't work — fall back to the `/connect` page's manual DevTools flow instead.
 ## Use
 
 1. Click the extension icon.
-2. Paste your token once (or click **Generate a new token** to get one — same as
-   `/connect`'s first step). It's saved locally in the extension, not synced
-   anywhere.
+2. Already have a token? Paste it straight into the token field — done, skip to
+   step 3. First time? Click **Generate a new token**: this opens `/connect` in a
+   new tab (clearly labeled as opened by the extension) — click its **Generate a
+   new token** button there, and the result is saved back into the extension
+   automatically. Reopen the popup afterward to see it filled in.
 3. Click **Sync all connected schools** (or an individual school button) any time
    your session expires. No DevTools, no copy-paste.
 
@@ -42,15 +44,19 @@ at a different deployment.
 - Your token is stored in this extension's local storage (`chrome.storage.local`)
   on this machine only, same trust level as a saved password in your browser.
 - On some corporate networks, a security proxy intercepts and rewrites requests
-  made directly from an extension's own context, breaking a plain `fetch()` to
-  the server. To work around this, every API call the extension makes actually
-  happens inside a background tab it briefly opens at `/connect` (via
-  `chrome.scripting.executeScript`) rather than from the popup directly — you
-  may see a tab flash open and close when you click Sync or Generate.
+  made directly from the extension's own context (fetch or injected script,
+  didn't matter which) — a real click on `/connect`'s own button was the only
+  thing confirmed to reliably get through. That's why generating a token opens a
+  real tab and needs one manual click there instead of the popup calling the API
+  itself: `connectWatcher.js`, a content script scoped only to `/connect`, watches
+  that page's DOM for the resulting token and saves it into the extension's
+  storage, so there's still no copy-paste involved. Sync calls a plain `fetch()`
+  directly from the popup, since that path was confirmed working as-is.
 
 ## Updating after a code change
 
-Editing `popup.js`/`popup.html` alone takes effect next time you open the
-popup — no reload needed. If `manifest.json` changes (e.g. a new permission is
-added), go to `chrome://extensions` and click the reload icon on this
-extension's card; Chrome will prompt you to accept the new permission.
+Editing `popup.js`/`popup.html`/`connectWatcher.js` alone takes effect next time
+you open the popup or reload `/connect` — no extension reload needed. If
+`manifest.json` changes (e.g. a new permission or content script is added), go
+to `chrome://extensions` and click the reload icon on this extension's card;
+Chrome will prompt you to accept any new permission.
