@@ -3,7 +3,7 @@
   "name": "POLITEMall MCP Cookie Sync",
   "version": "1.0.0",
   "description": "One-click sync of your POLITEMall/NYP/STEP session cookies to your politemall-mcp token — no DevTools copy-paste.",
-  "permissions": ["cookies", "storage"],
+  "permissions": ["cookies", "storage", "scripting", "tabs"],
   "host_permissions": [
     "https://lms.polite.edu.sg/*",
     "https://nyplms.polite.edu.sg/*",

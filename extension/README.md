@@ -41,3 +41,16 @@ at a different deployment.
   clicking it rarely rather than never.
 - Your token is stored in this extension's local storage (`chrome.storage.local`)
   on this machine only, same trust level as a saved password in your browser.
+- On some corporate networks, a security proxy intercepts and rewrites requests
+  made directly from an extension's own context, breaking a plain `fetch()` to
+  the server. To work around this, every API call the extension makes actually
+  happens inside a background tab it briefly opens at `/connect` (via
+  `chrome.scripting.executeScript`) rather than from the popup directly — you
+  may see a tab flash open and close when you click Sync or Generate.
+
+## Updating after a code change
+
+Editing `popup.js`/`popup.html` alone takes effect next time you open the
+popup — no reload needed. If `manifest.json` changes (e.g. a new permission is
+added), go to `chrome://extensions` and click the reload icon on this
+extension's card; Chrome will prompt you to accept the new permission.
