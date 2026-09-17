@@ -17,6 +17,11 @@ export class SessionExpiredError extends Error {}
 // wrong and confusing here — they need a different account or role, not a
 // fresh session.
 export class PermissionDeniedError extends Error {}
+// Distinct from both of the above: the cookie is valid and the role is fine,
+// but D2L returns a bare 404 for this route — in practice this means the
+// underlying tool (Quizzes, Surveys, ...) isn't enabled/visible on this
+// particular course, not that anything is wrong with the session.
+export class NotFoundError extends Error {}
 
 async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: string): Promise<T> {
   const res = await fetch(`https://${SCHOOL_HOSTS[school]}${path}`, {
@@ -27,7 +32,16 @@ async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: string):
   if (res.status === 403) {
     throw new PermissionDeniedError(`No permission to access ${path} — this likely requires an instructor/TA role`);
   }
-  throw new SessionExpiredError(`Request to ${path} failed with status ${res.status}`);
+  if (res.status === 404) {
+    throw new NotFoundError(`${path} returned 404 — this tool likely isn't enabled for this course`);
+  }
+  // A dead/expired D2L session manifests as either a redirect to the login
+  // page (redirect: "manual" surfaces that as a 3xx here) or a 401 — anything
+  // else (500s, etc.) is a real server-side failure, not a session problem.
+  if (res.status === 401 || (res.status >= 300 && res.status < 400)) {
+    throw new SessionExpiredError(`Request to ${path} failed with status ${res.status}`);
+  }
+  throw new Error(`Request to ${path} failed with unexpected status ${res.status}`);
 }
 
 interface ObjectListPage<T> {

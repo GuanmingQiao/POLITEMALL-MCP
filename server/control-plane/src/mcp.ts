@@ -2,7 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "./config.js";
 import * as d2l from "./d2l.js";
-import { SessionExpiredError as D2LSessionExpiredError, PermissionDeniedError as D2LPermissionDeniedError, type D2LSchool } from "./d2l.js";
+import {
+  SessionExpiredError as D2LSessionExpiredError,
+  PermissionDeniedError as D2LPermissionDeniedError,
+  NotFoundError as D2LNotFoundError,
+  type D2LSchool,
+} from "./d2l.js";
 import * as step from "./step.js";
 import { SessionExpiredError as StepSessionExpiredError } from "./step.js";
 import { connectedSchools, getCookieHeader } from "./tokenStore.js";
@@ -75,6 +80,9 @@ async function runForD2LCourse<T>(
       return errorResult(
         `You don't have instructor/TA permission for this in your ${school} course — this tool needs a grading role, not just enrollment.`
       );
+    }
+    if (err instanceof D2LNotFoundError) {
+      return errorResult(`This tool isn't enabled for this course in ${school} — no data to return, not a session problem.`);
     }
     throw err;
   }
