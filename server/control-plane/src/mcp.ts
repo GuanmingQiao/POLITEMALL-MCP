@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "./config.js";
 import * as d2l from "./d2l.js";
-import { SessionExpiredError as D2LSessionExpiredError, type D2LSchool } from "./d2l.js";
+import { SessionExpiredError as D2LSessionExpiredError, PermissionDeniedError as D2LPermissionDeniedError, type D2LSchool } from "./d2l.js";
 import * as step from "./step.js";
 import { SessionExpiredError as StepSessionExpiredError } from "./step.js";
 import { connectedSchools, getCookieHeader } from "./tokenStore.js";
@@ -71,6 +71,11 @@ async function runForD2LCourse<T>(
     if (err instanceof D2LSessionExpiredError) {
       return errorResult(`Your ${school} session expired — reconnect it at ${connectUrl()}.`);
     }
+    if (err instanceof D2LPermissionDeniedError) {
+      return errorResult(
+        `You don't have instructor/TA permission for this in your ${school} course — this tool needs a grading role, not just enrollment.`
+      );
+    }
     throw err;
   }
 }
@@ -128,6 +133,17 @@ export function buildMcpServerForToken(token: string): McpServer {
   );
 
   server.registerTool(
+    "get_class_grades",
+    {
+      title: "Get class grades (instructor/TA)",
+      description:
+        "Get every grade item and score for EVERY student in a D2L course — the gradebook view. Requires an instructor/TA/grader role in the course; students calling this get a permission error, not their own grades (use get_grades for that instead).",
+      inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
+    },
+    async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getClassGrades(school, c, id))
+  );
+
+  server.registerTool(
     "get_announcements",
     {
       title: "Get announcements",
@@ -155,6 +171,20 @@ export function buildMcpServerForToken(token: string): McpServer {
       inputSchema: { courseId: z.string().describe("The course's courseId, from list_courses") },
     },
     async ({ courseId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getAssignments(school, c, id))
+  );
+
+  server.registerTool(
+    "get_dropbox_submissions",
+    {
+      title: "Get dropbox submissions (instructor/TA)",
+      description:
+        "Get every student's submission for a dropbox/assignment folder — files, submission dates, score, and grading status. Requires an instructor/TA/grader role for the folder.",
+      inputSchema: {
+        courseId: z.string().describe("The course's courseId, from list_courses"),
+        folderId: z.number().describe("The dropbox folder's Id, from get_assignments"),
+      },
+    },
+    async ({ courseId, folderId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getDropboxSubmissions(school, c, id, folderId))
   );
 
   server.registerTool(
@@ -206,6 +236,22 @@ export function buildMcpServerForToken(token: string): McpServer {
       },
     },
     async ({ courseId, quizId }) => runForD2LCourse(token, courseId, (school, c, id) => d2l.getQuizAttempts(school, c, id, quizId))
+  );
+
+  server.registerTool(
+    "get_quiz_results",
+    {
+      title: "Get quiz results (instructor/TA)",
+      description:
+        "Get every student's attempts (score, started/completed times) for a quiz — the instructor grading view. Requires permission to view/grade the quiz. Optionally scope to one student by their classlist Identifier instead of the whole class.",
+      inputSchema: {
+        courseId: z.string().describe("The course's courseId, from list_courses"),
+        quizId: z.number().describe("The quiz's QuizId, from get_quizzes"),
+        studentUserId: z.string().optional().describe("A student's Identifier from get_classlist, to scope to just that student"),
+      },
+    },
+    async ({ courseId, quizId, studentUserId }) =>
+      runForD2LCourse(token, courseId, (school, c, id) => d2l.getQuizResults(school, c, id, quizId, studentUserId))
   );
 
   server.registerTool(

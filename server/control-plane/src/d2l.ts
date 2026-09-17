@@ -11,6 +11,12 @@ export const SCHOOL_HOSTS: Record<D2LSchool, string> = {
 };
 
 export class SessionExpiredError extends Error {}
+// Distinct from SessionExpiredError: the cookie is valid, but the account
+// lacks the D2L role/permission the endpoint requires (e.g. a student calling
+// an instructor-only grading route). Telling the caller to reconnect would be
+// wrong and confusing here — they need a different account or role, not a
+// fresh session.
+export class PermissionDeniedError extends Error {}
 
 async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: string): Promise<T> {
   const res = await fetch(`https://${SCHOOL_HOSTS[school]}${path}`, {
@@ -18,6 +24,9 @@ async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: string):
     redirect: "manual",
   });
   if (res.status === 200) return (await res.json()) as T;
+  if (res.status === 403) {
+    throw new PermissionDeniedError(`No permission to access ${path} — this likely requires an instructor/TA role`);
+  }
   throw new SessionExpiredError(`Request to ${path} failed with status ${res.status}`);
 }
 
@@ -153,6 +162,53 @@ export async function getGrades(school: D2LSchool, cookieHeader: string, numeric
     });
 }
 
+// --- Lecturer/TA: class-wide grades ---
+
+interface BulkGradeValue {
+  UserId: string;
+  GradeObjectIdentifier: string;
+  GradeObjectName: string;
+  DisplayedGrade: string;
+  PointsNumerator: number | null;
+  PointsDenominator: number | null;
+}
+export interface StudentGrade {
+  userId: string;
+  studentName: string | null;
+  gradeItemId: string;
+  gradeItemName: string;
+  maxPoints: number | null;
+  pointsAwarded: number | null;
+  pointsDenominator: number | null;
+  displayedGrade: string;
+}
+
+// Requires grades:gradevalues:read — an instructor/TA/grader permission. A
+// student calling this gets a 403 (PermissionDeniedError), same as the real UI
+// would refuse them the gradebook view.
+export async function getClassGrades(school: D2LSchool, cookieHeader: string, numericId: number): Promise<StudentGrade[]> {
+  const [definitions, values, classlist] = await Promise.all([
+    apiGet<GradeDefinition[]>(school, `/d2l/api/le/${LE_VERSION}/${numericId}/grades/`, cookieHeader),
+    fetchAllPages<BulkGradeValue>(school, `/d2l/api/le/${LE_VERSION}/${numericId}/grades/values/`, cookieHeader),
+    getClasslist(school, cookieHeader, numericId),
+  ]);
+  const defById = new Map(definitions.map((d) => [String(d.Id), d]));
+  const nameById = new Map(classlist.map((u) => [u.Identifier, u.DisplayName]));
+  return values.map((v) => {
+    const def = defById.get(v.GradeObjectIdentifier);
+    return {
+      userId: v.UserId,
+      studentName: nameById.get(v.UserId) ?? null,
+      gradeItemId: v.GradeObjectIdentifier,
+      gradeItemName: v.GradeObjectName || def?.Name || "",
+      maxPoints: def?.MaxPoints ?? null,
+      pointsAwarded: v.PointsNumerator,
+      pointsDenominator: v.PointsDenominator,
+      displayedGrade: v.DisplayedGrade,
+    };
+  });
+}
+
 export async function getAnnouncements(school: D2LSchool, cookieHeader: string, numericId: number): Promise<unknown> {
   return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/news/`, cookieHeader);
 }
@@ -163,6 +219,77 @@ export async function getCalendarEvents(school: D2LSchool, cookieHeader: string,
 
 export async function getAssignments(school: D2LSchool, cookieHeader: string, numericId: number): Promise<unknown> {
   return apiGet(school, `/d2l/api/le/${LE_VERSION}/${numericId}/dropbox/folders/`, cookieHeader);
+}
+
+// --- Lecturer/TA: dropbox submissions for the whole class ---
+
+interface DropboxFile {
+  FileId: number;
+  FileName: string;
+  Size: number;
+}
+interface DropboxSubmissionEntry {
+  Id: number;
+  SubmissionDate: string;
+  Files: DropboxFile[];
+}
+interface DropboxFeedback {
+  Score: number | null;
+  IsGraded: boolean;
+}
+interface EntityDropbox {
+  Entity: { EntityId: number; EntityType: number } | null;
+  Status: number;
+  Submissions: DropboxSubmissionEntry[] | null;
+  Feedback: DropboxFeedback | null;
+  CompletionDate: string | null;
+}
+export interface StudentSubmission {
+  studentUserId: string | null;
+  studentName: string | null;
+  status: number;
+  completionDate: string | null;
+  score: number | null;
+  isGraded: boolean;
+  submissions: { submittedDate: string; files: string[] }[];
+}
+
+// dropbox:folders:read on this specific folder requires grading permission —
+// students only ever see their own submission through the UI/other routes.
+// EntityId is a userId for individual folders but a groupId for group
+// dropboxes, in which case classlist lookup just misses and studentName stays
+// null (still returns the raw studentUserId for the caller to resolve via
+// get_groups if needed).
+export async function getDropboxSubmissions(
+  school: D2LSchool,
+  cookieHeader: string,
+  numericId: number,
+  folderId: number
+): Promise<StudentSubmission[]> {
+  const [entries, classlist] = await Promise.all([
+    fetchAllPages<EntityDropbox>(
+      school,
+      `/d2l/api/le/${LE_VERSION}/${numericId}/dropbox/folders/${folderId}/submissions/paged/`,
+      cookieHeader
+    ),
+    getClasslist(school, cookieHeader, numericId),
+  ]);
+  const nameById = new Map(classlist.map((u) => [u.Identifier, u.DisplayName]));
+  return entries.map((e) => {
+    const userId = e.Entity?.EntityId != null ? String(e.Entity.EntityId) : null;
+    return {
+      studentUserId: userId,
+      studentName: userId ? nameById.get(userId) ?? null : null,
+      status: e.Status,
+      completionDate: e.CompletionDate,
+      score: e.Feedback?.Score ?? null,
+      isGraded: e.Feedback?.IsGraded ?? false,
+      submissions: (e.Submissions ?? []).map((s) => ({
+        submittedDate: s.SubmissionDate,
+        files: (s.Files ?? []).map((f) => f.FileName),
+      })),
+    };
+  });
 }
 
 export async function whoami(school: D2LSchool, cookieHeader: string): Promise<unknown> {
@@ -187,6 +314,8 @@ export async function listQuizzes(school: D2LSchool, cookieHeader: string, numer
 interface QuizAttemptData {
   AttemptId: number;
   QuizId: number;
+  UserId: number;
+  AttemptNumber: number;
   Score: number | null;
   Started: string;
   Completed: string | null;
@@ -200,6 +329,49 @@ export async function getQuizAttempts(
   quizId: number
 ): Promise<QuizAttemptData[]> {
   return fetchAllPages(school, `/d2l/api/le/${LE_VERSION}/${numericId}/quizzes/${quizId}/attempts/`, cookieHeader);
+}
+
+// --- Lecturer/TA: quiz results for the whole class ---
+
+export interface QuizResult {
+  attemptId: number;
+  userId: string;
+  studentName: string | null;
+  attemptNumber: number;
+  score: number | null;
+  started: string;
+  completed: string | null;
+  isPublished: boolean;
+}
+
+// Same underlying route as getQuizAttempts, but this one requires
+// quizzing:attempts:read (view-or-grade-quiz permission) and returns every
+// student's attempts rather than just the caller's own — joined with the
+// classlist for names. Pass studentUserId (a classlist Identifier) to scope
+// to one student instead of the whole class.
+export async function getQuizResults(
+  school: D2LSchool,
+  cookieHeader: string,
+  numericId: number,
+  quizId: number,
+  studentUserId?: string
+): Promise<QuizResult[]> {
+  const qs = studentUserId ? `?${new URLSearchParams({ userId: studentUserId })}` : "";
+  const [attempts, classlist] = await Promise.all([
+    fetchAllPages<QuizAttemptData>(school, `/d2l/api/le/${LE_VERSION}/${numericId}/quizzes/${quizId}/attempts/${qs}`, cookieHeader),
+    getClasslist(school, cookieHeader, numericId),
+  ]);
+  const nameById = new Map(classlist.map((u) => [u.Identifier, u.DisplayName]));
+  return attempts.map((a) => ({
+    attemptId: a.AttemptId,
+    userId: String(a.UserId),
+    studentName: nameById.get(String(a.UserId)) ?? null,
+    attemptNumber: a.AttemptNumber,
+    score: a.Score,
+    started: a.Started,
+    completed: a.Completed,
+    isPublished: a.IsPublished,
+  }));
 }
 
 // --- Discussions ---

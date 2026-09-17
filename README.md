@@ -43,6 +43,16 @@ course belongs to, so just pass it through as-is to the other tools.
 | `get_groups` | Group categories and groups, with member counts |
 | `whoami` | Your identity on each connected school |
 
+**POLITEMall/NYP (D2L), instructor/TA only** — same `courseId`s as above, but
+these call grading-permission-gated endpoints. A student's cookie gets a clear
+permission error, not their own data, if they call one of these by mistake.
+
+| Tool | What it does |
+|---|---|
+| `get_class_grades` | Every grade item and score for every student — the gradebook view |
+| `get_quiz_results` | Every student's attempts for a quiz (or one student's, by classlist Identifier) |
+| `get_dropbox_submissions` | Every student's submission for an assignment folder — files, dates, score, grading status |
+
 **STEP** — `courseId` is a GUID string from `list_step_courses` /
 `search_step_courses`; STEP tools are separate from the D2L ones above since it's
 a different data model (training/attendance records, not course content/grades).
