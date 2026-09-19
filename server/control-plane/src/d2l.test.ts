@@ -1,22 +1,22 @@
-import { test } from "node:test";
+﻿import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveD2lPath, resolveD2lQuery, UnknownOperationError, InvalidRouteParamsError, parseCourseId, formatCourseId } from "./d2l.js";
 
-// spec: d2l-route-catalog — "resolving a path from an operation key", "rejecting an unknown operation key"
+// spec: d2l-route-catalog â€” "resolving a path from an operation key", "rejecting an unknown operation key"
 
 test("resolveD2lPath: valid substitution for a course-scoped route with a path param", () => {
   const path = resolveD2lPath("le.rubrics.get", { rubricId: 42 }, 6606);
-  assert.equal(path, "/d2l/api/le/1.9/6606/rubrics/42");
+  assert.equal(path, "/d2l/api/le/{version}/6606/rubrics/42");
 });
 
 test("resolveD2lPath: valid substitution for a course-scoped route with no extra path params", () => {
   const path = resolveD2lPath("le.grades.finalValueMy", {}, 6606);
-  assert.equal(path, "/d2l/api/le/1.9/6606/grades/final/values/myGradeValue");
+  assert.equal(path, "/d2l/api/le/{version}/6606/grades/final/values/myGradeValue");
 });
 
 test("resolveD2lPath: valid substitution for a global route (no orgUnitId at all)", () => {
   const path = resolveD2lPath("le.auditing.auditorGet", { auditorId: 123 });
-  assert.equal(path, "/d2l/api/le/1.9/auditing/auditors/123");
+  assert.equal(path, "/d2l/api/le/{version}/auditing/auditors/123");
 });
 
 test("resolveD2lPath: unknown operation key is rejected without touching the network", () => {

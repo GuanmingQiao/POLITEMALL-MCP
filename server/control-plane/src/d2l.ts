@@ -1,10 +1,6 @@
 import type { School } from "./schools.js";
 import { getRouteDescriptor } from "./d2lRouteCatalog.js";
-
-// Exported so d2lVersionCheck.ts can verify these are still supported by every tenant at
-// startup, without duplicating the pin in a second place.
-export const LE_VERSION = "1.9";
-export const LP_VERSION = "1.9";
+import { getD2lVersions, type D2lProduct } from "./d2lVersions.js";
 
 export type D2LSchool = Extract<School, "politemall" | "nyp">;
 
@@ -13,38 +9,122 @@ export const SCHOOL_HOSTS: Record<D2LSchool, string> = {
   nyp: "nyplms.polite.edu.sg",
 };
 
+// Request paths are built version-less ("/d2l/api/le/{version}/6606/grades/") because the
+// API version is a per-tenant fact discovered at runtime (see d2lVersions.ts). apiGet swaps the
+// placeholder for the tenant's current version just before the request goes out.
+export const VERSION_PLACEHOLDER = "{version}";
+const VERSIONED_PREFIX = /^\/d2l\/api\/(le|lp)\/\{version\}/;
+
+function versionedPath(product: D2lProduct, rest: string): string {
+  return `/d2l/api/${product}/${VERSION_PLACEHOLDER}${rest}`;
+}
+
+async function withVersion(school: D2LSchool, path: string): Promise<string> {
+  const match = VERSIONED_PREFIX.exec(path);
+  if (!match) return path;
+  const product = match[1] as D2lProduct;
+  const versions = await getD2lVersions(SCHOOL_HOSTS[school]);
+  return `/d2l/api/${product}/${versions[product]}${path.slice(match[0].length)}`;
+}
+
 export class SessionExpiredError extends Error {}
-// Distinct from SessionExpiredError: the cookie is valid, but the account
-// lacks the D2L role/permission the endpoint requires (e.g. a student calling
-// an instructor-only grading route). Telling the caller to reconnect would be
-// wrong and confusing here — they need a different account or role, not a
-// fresh session.
-export class PermissionDeniedError extends Error {}
-// Distinct from both of the above: the cookie is valid and the role is fine,
-// but D2L returns a bare 404 for this route — in practice this means the
-// underlying tool (Quizzes, Surveys, ...) isn't enabled/visible on this
-// particular course, not that anything is wrong with the session.
-export class NotFoundError extends Error {}
+
+// Any non-2xx answer from D2L that isn't a dead session. Carries the HTTP status and D2L's own
+// problem detail so callers can explain *what* went wrong instead of guessing from the class
+// alone — a bare 404 and a 400 need very different advice.
+export class D2lHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    // Route without host or query string, e.g. "le/1.97/524042/grades/final/values/".
+    readonly route: string,
+    // D2L's problem-details "detail"/"title", when it sent one.
+    readonly detail?: string
+  ) {
+    super(message);
+  }
+}
+// The cookie is valid, but the account lacks the D2L role/permission the endpoint requires
+// (e.g. a student calling an instructor-only grading route). Telling the caller to reconnect
+// would be wrong — they need a different role, not a fresh session.
+export class PermissionDeniedError extends D2lHttpError {}
+// The cookie is valid, but D2L has nothing at this route: the course/item id doesn't exist, the
+// caller can't see it, or the underlying tool (Quizzes, Surveys, ...) isn't enabled for the
+// course. D2L uses a bare 404 for all of these, so callers must not claim just one of them.
+export class NotFoundError extends D2lHttpError {}
+// D2L rejected the request itself (missing/invalid parameters, unsupported for this object).
+export class BadRequestError extends D2lHttpError {}
+
+function routeOf(path: string): string {
+  return path.replace(/^\/d2l\/api\//, "").split("?")[0];
+}
+
+async function problemDetail(res: Response): Promise<string | undefined> {
+  try {
+    const text = await res.text();
+    if (!text) return undefined;
+    try {
+      // D2L uses two error body shapes: RFC 7807 problem details ({title, detail}) and
+      // {"Errors":[{"Message":"..."}]}.
+      const body = JSON.parse(text) as { detail?: unknown; title?: unknown; Errors?: { Message?: unknown }[] };
+      const found = body.detail ?? body.Errors?.[0]?.Message ?? body.title;
+      return typeof found === "string" ? found : undefined;
+    } catch {
+      return text.slice(0, 200);
+    }
+  } catch {
+    return undefined;
+  }
+}
 
 async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: string): Promise<T> {
-  const res = await fetch(`https://${SCHOOL_HOSTS[school]}${path}`, {
+  const resolvedPath = await withVersion(school, path);
+  const res = await fetch(`https://${SCHOOL_HOSTS[school]}${resolvedPath}`, {
     headers: { Cookie: cookieHeader, Accept: "application/json" },
     redirect: "manual",
   });
   if (res.status === 200) return (await res.json()) as T;
-  if (res.status === 403) {
-    throw new PermissionDeniedError(`No permission to access ${path} — this likely requires an instructor/TA role`);
-  }
-  if (res.status === 404) {
-    throw new NotFoundError(`${path} returned 404 — this tool likely isn't enabled for this course`);
-  }
+
   // A dead/expired D2L session manifests as either a redirect to the login
   // page (redirect: "manual" surfaces that as a 3xx here) or a 401 — anything
   // else (500s, etc.) is a real server-side failure, not a session problem.
   if (res.status === 401 || (res.status >= 300 && res.status < 400)) {
-    throw new SessionExpiredError(`Request to ${path} failed with status ${res.status}`);
+    throw new SessionExpiredError(`Request to ${routeOf(resolvedPath)} failed with status ${res.status}`);
   }
-  throw new Error(`Request to ${path} failed with unexpected status ${res.status}`);
+
+  const route = routeOf(resolvedPath);
+  const detail = await problemDetail(res);
+  const message = `D2L answered ${res.status} for ${route}${detail ? `: ${detail}` : ""}`;
+  if (res.status === 403) throw new PermissionDeniedError(message, 403, route, detail);
+  if (res.status === 404) throw new NotFoundError(message, 404, route, detail);
+  if (res.status === 400) throw new BadRequestError(message, 400, route, detail);
+  throw new D2lHttpError(message, res.status, route, detail);
+}
+
+export interface CourseAccess {
+  enrolled: boolean;
+  // ClasslistRoleName from the caller's own enrollment (e.g. "Learner", "Tutor"), if D2L named one.
+  role: string | null;
+  isActive: boolean | null;
+}
+
+// Asks D2L about the caller's own enrollment in one org unit. Used only on the error path, to
+// tell "you aren't in this course" apart from "you are, but this item/tool/permission isn't
+// available" — the HTTP status alone can't (D2L answers both with 403/404).
+export async function getCourseAccess(school: D2LSchool, cookieHeader: string, numericId: number): Promise<CourseAccess> {
+  try {
+    const e = await apiGet<{ Access: { IsActive: boolean; ClasslistRoleName: string | null } }>(
+      school,
+      versionedPath("lp", `/enrollments/myenrollments/${numericId}`),
+      cookieHeader
+    );
+    return { enrolled: true, role: e.Access?.ClasslistRoleName ?? null, isActive: e.Access?.IsActive ?? null };
+  } catch (err) {
+    if (err instanceof NotFoundError || err instanceof PermissionDeniedError) {
+      return { enrolled: false, role: null, isActive: null };
+    }
+    throw err;
+  }
 }
 
 // --- Route catalog dispatch --------------------------------------------------
@@ -85,8 +165,7 @@ export function resolveD2lPath(operation: string, pathParams: Record<string, unk
     throw new InvalidRouteParamsError(`Unresolved path placeholder(s) for "${operation}": ${path}`);
   }
 
-  const version = descriptor.product === "le" ? LE_VERSION : LP_VERSION;
-  return `/d2l/api/${descriptor.product}/${version}${path}`;
+  return versionedPath(descriptor.product, path);
 }
 
 // Validates and serializes query params for a cataloged operation into a "?"-prefixed string
@@ -226,7 +305,7 @@ export async function listCourses(school: D2LSchool, cookieHeader: string): Prom
   for (let page = 0; page < 10; page++) {
     const qs = new URLSearchParams({ orgUnitTypeId: "3" });
     if (bookmark) qs.set("bookmark", bookmark);
-    const data = await apiGet<MyEnrollmentsPage>(school, `/d2l/api/lp/${LP_VERSION}/enrollments/myenrollments/?${qs}`, cookieHeader);
+    const data = await apiGet<MyEnrollmentsPage>(school, versionedPath("lp", `/enrollments/myenrollments/?${qs}`), cookieHeader);
     for (const item of data.Items) {
       if (item.OrgUnit.Type.Id !== 3) continue;
       courses.push({
@@ -387,9 +466,10 @@ export interface StudentSubmission {
   submissions: { submittedDate: string; files: string[] }[];
 }
 
-// dropbox:folders:read on this specific folder requires grading permission —
-// students only ever see their own submission through the UI/other routes.
-// EntityId is a userId for individual folders but a groupId for group
+// Scope follows the caller's role: with grading permission D2L returns every student's
+// entry; a learner is not refused (no 403) but gets only their own entry — confirmed live
+// against the NYP tenant — so callers must not read a single row as "one submission in
+// the class". EntityId is a userId for individual folders but a groupId for group
 // dropboxes, in which case classlist lookup just misses and studentName stays
 // null (still returns the raw studentUserId for the caller to resolve via
 // get_groups if needed).
@@ -422,7 +502,7 @@ export async function getDropboxSubmissions(
 }
 
 export async function whoami(school: D2LSchool, cookieHeader: string): Promise<unknown> {
-  return apiGet(school, `/d2l/api/lp/${LP_VERSION}/users/whoami`, cookieHeader);
+  return apiGet(school, versionedPath("lp", "/users/whoami"), cookieHeader);
 }
 
 // --- Quizzes ---
@@ -616,14 +696,14 @@ export interface GroupCategoryWithGroups {
 export async function getGroups(school: D2LSchool, cookieHeader: string, numericId: number): Promise<GroupCategoryWithGroups[]> {
   const categories = await apiGet<GroupCategoryData[]>(
     school,
-    `/d2l/api/lp/${LP_VERSION}/${numericId}/groupcategories/`,
+    versionedPath("lp", `/${numericId}/groupcategories/`),
     cookieHeader
   );
   const result: GroupCategoryWithGroups[] = [];
   for (const category of categories) {
     const groups = await apiGet<GroupData[]>(
       school,
-      `/d2l/api/lp/${LP_VERSION}/${numericId}/groupcategories/${category.GroupCategoryId}/groups/`,
+      versionedPath("lp", `/${numericId}/groupcategories/${category.GroupCategoryId}/groups/`),
       cookieHeader
     );
     result.push({
@@ -645,13 +725,18 @@ export interface DueItem {
   dateCompleted: string | null;
 }
 
+// orgUnitIdsCSV is required by this route (D2L answers 400 without it), same as the calendar and
+// updates routes below — so list the caller's own course org units first.
 export async function getDueItems(school: D2LSchool, cookieHeader: string): Promise<DueItem[]> {
+  const orgUnitIdsCSV = await buildOrgUnitIdsCsv(school, cookieHeader);
+  if (!orgUnitIdsCSV) return [];
+  const qs = resolveD2lQuery("le.content.global.myItemsCompletionsDue", { orgUnitIdsCSV });
   const items = await fetchAllPages<{
     OrgUnitId: string;
     ItemName: string;
     DueDate: string | null;
     DateCompleted: string | null;
-  }>(school, resolveD2lPath("le.content.global.myItemsCompletionsDue", {}), cookieHeader);
+  }>(school, resolveD2lPath("le.content.global.myItemsCompletionsDue", {}) + qs, cookieHeader);
   return items.map((i) => ({
     school,
     orgUnitId: i.OrgUnitId,

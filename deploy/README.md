@@ -26,15 +26,14 @@ cd /opt/politemall-mcp && git pull
 cd server && docker compose up -d --build
 ```
 
-**The container now fails to start if a D2L tenant no longer supports the pinned API
-version** — a startup check (`checkD2lVersionCompatibility`, see `src/d2lVersionCheck.ts`)
-calls each school host's anonymous `/d2l/api/(le|lp)/versions/(version)` route before the
-server binds its port. If a redeploy suddenly won't come up, check `docker compose logs`
-first — a `VersionUnsupportedError` there means `LE_VERSION`/`LP_VERSION` in `d2l.ts` need
-bumping (and the curated tools' response-shaping code should be spot-checked against the new
-version before redeploying), not a deploy-process problem. A `VersionCheckUnreachableError`
-instead means a school host couldn't be reached at all — an infrastructure/DNS problem, not a
-version mismatch.
+**D2L API versions are discovered, not pinned.** The server reads each school host's
+anonymous `/d2l/api/versions/` list (see `src/d2lVersions.ts`) and uses the newest supported
+`le` and `lp` version for that tenant, cached for 6 hours and refreshed automatically. On boot
+it logs what it resolved (`D2L API versions for <host>: le X, lp Y`); an unreachable host is
+only a warning there and is retried on first use, so it never blocks startup. If a newer version
+ever changes a response shape a curated tool depends on, pin that product back without a code
+change by setting `D2L_LE_VERSION` and/or `D2L_LP_VERSION` (e.g. `D2L_LE_VERSION=1.75`) in the
+container environment.
 
 ## Revoking a token
 

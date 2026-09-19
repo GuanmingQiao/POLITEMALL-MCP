@@ -1,14 +1,14 @@
-import { test } from "node:test";
+﻿import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveD2lPath, resolveD2lQuery } from "./d2l.js";
 
-// spec: d2l-mcp-tool-surface — "Existing tools are behavior-preserving"
+// spec: d2l-mcp-tool-surface â€” "Existing tools are behavior-preserving"
 //
 // Pins resolveD2lPath's output against the exact hardcoded template-literal paths the
 // pre-refactor code used, for every LE-scoped tool wrapper that moved onto the catalog in
 // task 3.1. If this drifts, an existing tool's request path silently changed.
 
-const LE = "/d2l/api/le/1.9";
+const LE = "/d2l/api/le/{version}";
 const numericId = 6606;
 
 test("existing-tool path parity: get_course_content", () => {

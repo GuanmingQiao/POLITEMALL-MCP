@@ -8,15 +8,17 @@ import { buildMcpServerForToken } from "./mcp.js";
 import { auditLog } from "./auditLog.js";
 import { bearerToken, rateLimitByToken } from "./rateLimit.js";
 import { startKeepAlive } from "./keepAlive.js";
-import { checkD2lVersionCompatibility } from "./d2lVersionCheck.js";
+import { warmD2lVersions } from "./d2lVersions.js";
+import { SCHOOL_HOSTS } from "./d2l.js";
 import type { School } from "./schools.js";
 
 const VALID_SCHOOLS: School[] = ["politemall", "nyp", "step"];
 
 await loadMasterKey();
-// Fail fast at boot if a D2L tenant no longer supports the pinned LE/LP API version, rather
-// than discovering it later as scattered runtime tool-call failures — see design.md Decision 5.
-await checkD2lVersionCompatibility();
+// Resolve each D2L tenant's latest LE/LP API version up front so problems show in the boot log.
+// Not fatal: versions are discovered lazily too, so a tenant that is briefly unreachable now is
+// simply retried on first use.
+await warmD2lVersions(Object.values(SCHOOL_HOSTS));
 
 const app = express();
 app.set("trust proxy", true);

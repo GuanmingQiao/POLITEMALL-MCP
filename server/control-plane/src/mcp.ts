@@ -6,8 +6,11 @@ import {
   SessionExpiredError as D2LSessionExpiredError,
   PermissionDeniedError as D2LPermissionDeniedError,
   NotFoundError as D2LNotFoundError,
+  D2lHttpError,
   type D2LSchool,
 } from "./d2l.js";
+import { D2lVersionDiscoveryError } from "./d2lVersions.js";
+import { describeD2lFailure } from "./d2lErrors.js";
 import * as step from "./step.js";
 import { SessionExpiredError as StepSessionExpiredError } from "./step.js";
 import { connectedSchools, getCookieHeader } from "./tokenStore.js";
@@ -28,35 +31,75 @@ function connectUrl(): string {
   return `${config.publicOrigin}/connect`;
 }
 
+// Turns a failed D2L call into a message an agent can act on, or undefined if `err` isn't a
+// D2L/session/version failure (a genuine bug — let it propagate). For 403/404 on a course-scoped
+// call it also asks D2L for the caller's own enrollment: the HTTP status alone can't tell "not in
+// this course" from "in it, but lacking permission / item missing / tool off".
+async function explainD2lError(err: unknown, school: D2LSchool, cookieHeader: string, courseId?: string): Promise<string | undefined> {
+  if (err instanceof D2LSessionExpiredError) {
+    return `Your ${school} session expired — reconnect it at ${connectUrl()}.`;
+  }
+  if (err instanceof D2lVersionDiscoveryError) {
+    return `Couldn't determine which D2L API version ${school} supports right now (${err.message}). This is temporary — try again shortly.`;
+  }
+  if (err instanceof D2lHttpError) {
+    console.warn(`D2L ${err.status} for ${school} ${err.route}${err.detail ? ` (${err.detail})` : ""}`);
+    let access;
+    if (courseId && (err instanceof D2LPermissionDeniedError || err instanceof D2LNotFoundError)) {
+      try {
+        access = await d2l.getCourseAccess(school, cookieHeader, d2l.parseCourseId(courseId).numericId);
+      } catch {
+        // Diagnosis is best-effort; fall back to the status-only message.
+      }
+    }
+    return describeD2lFailure(err, { school, courseId, access });
+  }
+  return undefined;
+}
+
 // Runs fn against every D2L school (politemall/nyp) the token has a saved cookie
-// for, merging results. A single school's session being expired/never-connected
-// doesn't fail the whole call — it's reported alongside whatever data the other
-// school(s) returned.
+// for, merging results. One school failing (expired session, a route that school's D2L rejects,
+// an outage) doesn't fail the whole call — it's reported as a warning next to whatever data the
+// other school(s) returned. `failed` counts schools that produced no data at all.
 async function runAcrossD2LSchools<T>(
   token: string,
   fn: (school: D2LSchool, cookieHeader: string) => Promise<T[]>
-): Promise<{ results: T[]; warnings: string[] }> {
+): Promise<{ results: T[]; warnings: string[]; attempted: number; failed: number }> {
   const schools = connectedSchools(token).filter((s): s is D2LSchool => s === "politemall" || s === "nyp");
   if (schools.length === 0) {
-    return { results: [], warnings: [`No school connected yet. Connect at least one at ${connectUrl()}.`] };
+    return { results: [], warnings: [`No school connected yet. Connect at least one at ${connectUrl()}.`], attempted: 0, failed: 0 };
   }
 
   const results: T[] = [];
   const warnings: string[] = [];
+  let attempted = 0;
+  let failed = 0;
   for (const school of schools) {
     const cookieHeader = getCookieHeader(token, school);
     if (!cookieHeader) continue;
+    attempted++;
     try {
       results.push(...(await fn(school, cookieHeader)));
     } catch (err) {
-      if (err instanceof D2LSessionExpiredError) {
-        warnings.push(`Your ${school} session expired — reconnect it at ${connectUrl()}.`);
-      } else {
-        throw err;
-      }
+      const message = await explainD2lError(err, school, cookieHeader);
+      if (message === undefined) throw err;
+      failed++;
+      warnings.push(`${school}: ${message}`);
     }
   }
-  return { results, warnings };
+  return { results, warnings, attempted, failed };
+}
+
+// Wraps a cross-school tool's output. If every connected school failed there is no data to
+// return, so that is an error rather than a success carrying only warnings.
+async function acrossSchoolsResult<T>(
+  token: string,
+  key: string,
+  fn: (school: D2LSchool, cookieHeader: string) => Promise<T[]>
+) {
+  const { results, warnings, attempted, failed } = await runAcrossD2LSchools(token, fn);
+  if (attempted > 0 && failed === attempted) return errorResult(warnings.join("\n"));
+  return toolResult({ [key]: results, warnings: warnings.length ? warnings : undefined });
 }
 
 // Single-course D2L tools resolve which school a "school:numericId" courseId
@@ -74,18 +117,9 @@ async function runForD2LCourse<T>(
   try {
     return toolResult(await fn(school, cookieHeader, numericId));
   } catch (err) {
-    if (err instanceof D2LSessionExpiredError) {
-      return errorResult(`Your ${school} session expired — reconnect it at ${connectUrl()}.`);
-    }
-    if (err instanceof D2LPermissionDeniedError) {
-      return errorResult(
-        `You don't have instructor/TA permission for this in your ${school} course — this tool needs a grading role, not just enrollment.`
-      );
-    }
-    if (err instanceof D2LNotFoundError) {
-      return errorResult(`This tool isn't enabled for this course in ${school} — no data to return, not a session problem.`);
-    }
-    throw err;
+    const message = await explainD2lError(err, school, cookieHeader, courseId);
+    if (message === undefined) throw err;
+    return errorResult(message);
   }
 }
 
@@ -116,10 +150,7 @@ export function buildMcpServerForToken(token: string): McpServer {
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => {
-      const { results, warnings } = await runAcrossD2LSchools(token, (school, cookieHeader) => d2l.listCourses(school, cookieHeader));
-      return toolResult({ courses: results, warnings: warnings.length ? warnings : undefined });
-    }
+    async () => acrossSchoolsResult(token, "courses", (school, cookieHeader) => d2l.listCourses(school, cookieHeader))
   );
 
   server.registerTool(
@@ -194,7 +225,7 @@ export function buildMcpServerForToken(token: string): McpServer {
     {
       title: "Get dropbox submissions (instructor/TA)",
       description:
-        "Get every student's submission for a dropbox/assignment folder — files, submission dates, score, and grading status. Requires an instructor/TA/grader role for the folder.",
+        "Get submissions for a dropbox/assignment folder — files, submission dates, score, and grading status. What you get depends on your role in the course: an instructor/TA/grader gets every student's submission; a learner is NOT refused but gets only their own entry, so a single-row result does not mean the class has one submission. To fetch your own submission with feedback, use get_my_dropbox_submission.",
       inputSchema: {
         courseId: z.string().describe("The course's courseId, from list_courses"),
         folderId: z.number().describe("The dropbox folder's Id, from get_assignments"),
@@ -228,10 +259,7 @@ export function buildMcpServerForToken(token: string): McpServer {
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => {
-      const { results, warnings } = await runAcrossD2LSchools(token, (school, cookieHeader) => d2l.getDueItems(school, cookieHeader));
-      return toolResult({ dueItems: results, warnings: warnings.length ? warnings : undefined });
-    }
+    async () => acrossSchoolsResult(token, "dueItems", (school, cookieHeader) => d2l.getDueItems(school, cookieHeader))
   );
 
   server.registerTool(
@@ -506,8 +534,7 @@ export function buildMcpServerForToken(token: string): McpServer {
       const now = Date.now();
       const start = startDate ?? new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
       const end = endDate ?? new Date(now + 60 * 24 * 60 * 60 * 1000).toISOString();
-      const { results, warnings } = await runAcrossD2LSchools(token, (school, cookieHeader) => d2l.getMyCalendarEvents(school, cookieHeader, start, end));
-      return toolResult({ events: results, warnings: warnings.length ? warnings : undefined });
+      return acrossSchoolsResult(token, "events", (school, cookieHeader) => d2l.getMyCalendarEvents(school, cookieHeader, start, end));
     }
   );
 
@@ -520,10 +547,7 @@ export function buildMcpServerForToken(token: string): McpServer {
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => {
-      const { results, warnings } = await runAcrossD2LSchools(token, (school, cookieHeader) => d2l.getOverdueItems(school, cookieHeader));
-      return toolResult({ overdueItems: results, warnings: warnings.length ? warnings : undefined });
-    }
+    async () => acrossSchoolsResult(token, "overdueItems", (school, cookieHeader) => d2l.getOverdueItems(school, cookieHeader))
   );
 
   server.registerTool(
@@ -535,10 +559,7 @@ export function buildMcpServerForToken(token: string): McpServer {
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => {
-      const { results, warnings } = await runAcrossD2LSchools(token, (school, cookieHeader) => d2l.getRecentUpdates(school, cookieHeader));
-      return toolResult({ updates: results, warnings: warnings.length ? warnings : undefined });
-    }
+    async () => acrossSchoolsResult(token, "updates", (school, cookieHeader) => d2l.getRecentUpdates(school, cookieHeader))
   );
 
   server.registerTool(
@@ -617,19 +638,12 @@ export function buildMcpServerForToken(token: string): McpServer {
         const result = await d2l.callD2lOperation(targetSchool, cookieHeader, operation, pathParams ?? {}, queryParams ?? {}, orgUnitId);
         return toolResult({ operation, result });
       } catch (err) {
-        if (err instanceof D2LSessionExpiredError) {
-          return errorResult(`Your ${targetSchool} session expired — reconnect it at ${connectUrl()}.`);
-        }
-        if (err instanceof D2LPermissionDeniedError) {
-          return errorResult(`You don't have permission for "${operation}" in your ${targetSchool} session.`);
-        }
-        if (err instanceof D2LNotFoundError) {
-          return errorResult(`"${operation}" returned 404 for this course/object in ${targetSchool} — likely not enabled, not a session problem.`);
-        }
         if (err instanceof d2l.InvalidRouteParamsError || err instanceof d2l.UnsupportedOperationError) {
           return errorResult(err.message);
         }
-        throw err;
+        const message = await explainD2lError(err, targetSchool, cookieHeader, courseId);
+        if (message === undefined) throw err;
+        return errorResult(`"${operation}" failed. ${message}`);
       }
     }
   );
@@ -712,11 +726,9 @@ export function buildMcpServerForToken(token: string): McpServer {
         try {
           results[school] = await d2l.whoami(school, cookieHeader);
         } catch (err) {
-          if (err instanceof D2LSessionExpiredError) {
-            warnings.push(`Your ${school} session expired — reconnect it at ${connectUrl()}.`);
-          } else {
-            throw err;
-          }
+          const message = await explainD2lError(err, school, cookieHeader);
+          if (message === undefined) throw err;
+          warnings.push(`${school}: ${message}`);
         }
       }
 

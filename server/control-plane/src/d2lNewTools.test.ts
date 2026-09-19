@@ -1,6 +1,10 @@
-import { test } from "node:test";
+﻿import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as d2l from "./d2l.js";
+import { primeD2lVersions } from "./d2lVersions.js";
+
+// Versions are discovered per tenant at runtime; these tests are about the routes, not discovery.
+for (const host of Object.values(d2l.SCHOOL_HOSTS)) primeD2lVersions(host, { le: "1.97", lp: "1.63" });
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -117,6 +121,25 @@ test("getMyCalendarEvents: no enrolled courses returns an empty array without ca
   const result = await d2l.getMyCalendarEvents("politemall", "cookie", "2026-01-01", "2026-02-01");
   assert.deepEqual(result, []);
   assert.ok(!calls.some((c) => c.includes("/calendar/")));
+});
+
+test("getDueItems: sends orgUnitIdsCSV built from the caller's own courses (D2L answers 400 without it)", async (t) => {
+  const calls = mockFetch(t, [
+    {
+      match: "/enrollments/myenrollments/",
+      body: { PagingInfo: { Bookmark: null, HasMoreItems: false }, Items: [{ OrgUnit: { Id: 6606, Type: { Id: 3 }, Name: "Course A", Code: "A" }, Access: { IsActive: true, StartDate: null, EndDate: null, LastAccessed: null } }] },
+    },
+    { match: "/completions/due/", body: { Next: null, Objects: [{ OrgUnitId: "6606", ItemName: "Quiz 1", DueDate: "d", DateCompleted: null }] } },
+  ]);
+  const result = await d2l.getDueItems("politemall", "cookie");
+  assert.deepEqual(result, [{ school: "politemall", orgUnitId: "6606", itemName: "Quiz 1", dueDate: "d", dateCompleted: null }]);
+  assert.match(calls.find((c) => c.includes("/completions/due/"))!, /\?orgUnitIdsCSV=6606$/);
+});
+
+test("getDueItems: no enrolled courses returns an empty array without calling the due route", async (t) => {
+  const calls = mockFetch(t, [{ match: "/enrollments/myenrollments/", body: { PagingInfo: { Bookmark: null, HasMoreItems: false }, Items: [] } }]);
+  assert.deepEqual(await d2l.getDueItems("politemall", "cookie"), []);
+  assert.ok(!calls.some((c) => c.includes("/completions/due/")));
 });
 
 test("getOverdueItems: maps items with no query string required", async (t) => {
