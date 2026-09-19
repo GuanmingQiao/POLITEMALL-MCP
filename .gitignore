@@ -1,8 +1,10 @@
 node_modules/
 dist/
-.session/
 *.log
 secrets.txt
 server/data/
 server/control-plane/dist/
 server/control-plane/node_modules/
+server/control-plane/.test-build/
+server/control-plane/data/
+test-oracle/

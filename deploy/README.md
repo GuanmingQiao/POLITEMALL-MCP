@@ -27,7 +27,7 @@ cd server && docker compose up -d --build
 ```
 
 **D2L API versions are discovered, not pinned.** The server reads each school host's
-anonymous `/d2l/api/versions/` list (see `src/d2lVersions.ts`) and uses the newest supported
+anonymous `/d2l/api/versions/` list (see `server/control-plane/src/api/d2l-versions.ts`) and uses the newest supported
 `le` and `lp` version for that tenant, cached for 6 hours and refreshed automatically. On boot
 it logs what it resolved (`D2L API versions for <host>: le X, lp Y`); an unreachable host is
 only a warning there and is retried on first use, so it never blocks startup. If a newer version

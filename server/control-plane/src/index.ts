@@ -1,16 +1,17 @@
 import express from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { config } from "./config.js";
-import { loadMasterKey } from "./secrets.js";
-import { isValidToken, issueToken, saveCookieHeader, tokenLogId } from "./tokenStore.js";
-import { renderConnectPage } from "./connectPage.js";
-import { buildMcpServerForToken } from "./mcp.js";
-import { auditLog } from "./auditLog.js";
-import { bearerToken, rateLimitByToken } from "./rateLimit.js";
-import { startKeepAlive } from "./keepAlive.js";
-import { warmD2lVersions } from "./d2lVersions.js";
-import { SCHOOL_HOSTS } from "./d2l.js";
-import type { School } from "./schools.js";
+import { config } from "./utils/config.js";
+import { loadMasterKey } from "./auth/secrets.js";
+import { isValidToken, issueToken, saveCookieHeader, tokenLogId } from "./auth/token-store.js";
+import { createTokenContext } from "./auth/session-context.js";
+import { renderConnectPage } from "./connect-page.js";
+import { buildMcpServer } from "./server.js";
+import { auditLog } from "./utils/audit-log.js";
+import { bearerToken, rateLimitByToken } from "./auth/rate-limit.js";
+import { startKeepAlive } from "./auth/keep-alive.js";
+import { warmD2lVersions } from "./api/d2l-versions.js";
+import { SCHOOL_HOSTS } from "./api/d2l-client.js";
+import type { School } from "./types/schools.js";
 
 const VALID_SCHOOLS: School[] = ["politemall", "nyp", "step"];
 
@@ -78,7 +79,7 @@ app.post("/mcp", rateLimitByToken((req) => bearerToken(req)), async (req, res) =
   const operation = toolName === "call_d2l_operation" ? body?.params?.arguments?.operation : undefined;
   auditLog("mcp_call", { tokenId: tokenLogId(token), method, tool: toolName, operation, ip: req.ip });
 
-  const server = buildMcpServerForToken(token);
+  const server = buildMcpServer(createTokenContext(token));
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     void transport.close();

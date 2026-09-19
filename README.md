@@ -6,9 +6,8 @@ and attendance). Talks directly to each system's own REST API, authenticated wit
 a browser session cookie — no institutional API key or app registration involved.
 
 **Live server:** `https://13-212-182-50.sslip.io` — this is the primary way to use
-this project: one shared server, each person connected with their own token. A
-[local single-user variant](#local-single-user-alternative) also exists if you'd
-rather run your own copy; see the bottom of this doc.
+this project: one shared server, each person connected with their own token. The exact
+same server (same tools, same code) can also [run on your own machine](#running-it-locally).
 
 ## The three systems
 
@@ -34,19 +33,20 @@ course belongs to, so just pass it through as-is to the other tools.
 | `get_overdue_items` | D2L-computed overdue items across every course and connected school — a filtered view distinct from `get_due_items` |
 | `get_recent_updates` | Counts of unread/pending activity (discussions, feedback, quizzes) across every course and connected school — a "what's new" feed |
 | `get_my_calendar_events` | Your calendar events across every course and connected school in one call, within a date window (default: 7 days ago to 60 days ahead) |
-| `get_course_content` | Module/topic table of contents for a course |
+| `get_course_content` | The course's module/topic tree — one call — with `typeFilter` (file/link/html/video), `moduleTitle` and `maxDepth` to keep it small; rich text as Markdown |
 | `get_content_topic` | Metadata for a single content topic — a drill-down from `get_course_content` |
 | `get_course_overview` | The course description/overview content (the "Class Overview"/syllabus) |
 | `get_grades` | Grade items and your scores |
 | `get_my_final_grade` | Your calculated/adjusted final grade for a course |
-| `get_announcements` | Course news posts |
+| `get_announcements` | Latest announcements, newest first, plain text, drafts excluded — for one course or (no `courseId`) across all your active courses; `count` limits it |
 | `get_calendar_events` | Course calendar events |
-| `get_assignments` | Dropbox/assignment folders and due dates |
+| `get_assignments` | Assignments and quizzes, soonest due first — instructions, rubric, whether you've submitted, your files and feedback, quiz attempts, plus scored items that have no assignment behind them. One course, or all active courses |
+| `get_assignment_files` | Read the files an instructor attached to an assignment (PDF, DOCX, XLSX, PPTX, text): list which assignments have attachments, then read one and get its text |
 | `get_my_dropbox_submission` | Your own submission (files, dates, score, feedback) for an assignment folder |
 | `get_quizzes` / `get_quiz_attempts` | Quiz list, then your attempt scores/status for one |
 | `get_quiz_questions` | Questions defined for a quiz |
 | `get_discussion_forums` / `get_discussion_topics` / `get_discussion_posts` | Drill down forums → topics → actual post content and authors |
-| `get_classlist` | Students/instructors enrolled in a course |
+| `get_classlist` | Who is in a course: headcount per role, plus the staff by default (students only with `includeStudents`, `searchTerm` to find someone) |
 | `get_rubrics` | Rubric criteria/levels — by `rubricId`, or list rubrics attached to a discussion/dropbox/etc. object |
 | `get_surveys` / `get_survey_attempts` | Survey list, then your attempt history for one |
 | `get_survey_questions` | Questions defined for a survey |
@@ -209,34 +209,40 @@ a known Copilot Studio rough edge with MCP connectors, not a server-side issue.
 
 ```
 server/
-  control-plane/  the hosted multi-tenant MCP server (Streamable HTTP)
+  control-plane/            the MCP server (Streamable HTTP) — the only server in this repo
+    src/
+      index.ts, local.ts    hosted entry point / local entry point (same server, see below)
+      server.ts             builds the MCP server for one caller
+      api/                  D2L + STEP clients: version discovery, routes, pagination, errors
+      auth/                 token store, encryption, rate limiting, keep-alive, per-caller session context
+      tools/                one file per tool (+ shared helpers and schemas)
+      utils/                config, audit log, HTML→Markdown, PDF/Office text extraction, deep links
+      types/                shared types, incl. ToolContext
+    tests/                  mirrors src/ (api/, auth/, tools/, utils/); run with `npm test`
   docker-compose.yml, Caddyfile
-deploy/           AWS provisioning notes/scripts for the hosted server
-extension/        browser extension for one-click cookie sync
-src/              local single-user MCP server (see below)
+deploy/                     AWS provisioning notes/scripts for the hosted server
+extension/                  browser extension for one-click cookie sync
 ```
 
-See [deploy/README.md](deploy/README.md) for how the server is provisioned and
-operated on AWS.
+Tools never know where a caller's sessions live: they receive a `ToolContext`
+(`types/tool-context.ts`), so the hosted server and a local run expose the identical
+tool set. See [deploy/README.md](deploy/README.md) for how the server is provisioned
+and operated on AWS.
 
-## Local, single-user alternative
+## Running it locally
 
-A stdio MCP server on your own machine, for your own POLITEMall account only —
-no shared server, no token, just a local session file. Simpler if you're the only
-user and don't need NYP/STEP or the fuller tool set above (this variant only has
-the original 7 basic tools: `list_courses`, `get_course_content`, `get_grades`,
-`get_announcements`, `get_calendar_events`, `get_assignments`, `whoami`).
+There is one server, and it runs the same tools locally as in the cloud:
 
 ```bash
+cd server/control-plane
 npm install
-npx playwright install chromium
-npm run build
-npm run login   # opens a real browser window for you to SSO through
+npm run local        # builds, then starts on http://localhost:3000 (no AWS needed)
 ```
 
-A local `.mcp.json` at the repo root already points at `dist/index.js` — Claude
-Code picks it up automatically when opened in this directory. For another
-client, point it at `node <path-to-this-repo>/dist/index.js` as a stdio server.
+`npm run local` generates a master key into `server/control-plane/data/` on first start and
+keeps encrypted sessions there. Connect the same way as the hosted server, using the manual
+steps on `http://localhost:3000/connect` (the browser extension is set up for the hosted
+server only), then point your MCP client at `http://localhost:3000/mcp` with your token as a
+bearer token. Sessions expire periodically; reconnect the same way.
 
-Sessions expire periodically; re-run `npm run login` (or just use a tool — it
-auto-relogs-in) when that happens.
+Tests: `npm test` (compiles `src/` and `tests/`, then runs everything with Node's test runner).

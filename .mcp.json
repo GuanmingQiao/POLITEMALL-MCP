@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "politemall": {
-      "command": "node",
-      "args": ["dist/index.js"]
-    }
-  }
-}
