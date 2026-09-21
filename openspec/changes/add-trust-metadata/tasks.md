@@ -122,7 +122,7 @@ All paths are under `server/control-plane/` unless stated. Run the suite with `n
 
 ## 5. Live link verification (local, needs signed-in sessions)
 
-- [ ] 5.1 Add `--collect-links <file>` to `test-oracle/run-oracle.mjs`: for each case, record every
+- [x] 5.1 Add `--collect-links <file>` to `test-oracle/run-oracle.mjs`: for each case, record every
       `sourceUrl`/`pageUrl` returned with its tool, case id, system (NYP, POLITEMall, STEP), item
       type and item name/id.
       Verify by running against the deployed server and inspecting the file for one link per
@@ -153,9 +153,9 @@ All paths are under `server/control-plane/` unless stated. Run the suite with `n
 ## 6. Rollout and documentation
 
 - [x] 6.1 Build and full test run. Verify `npm run build` and `npm test` are clean.
-- [ ] 6.2 Commit, push and redeploy (default `SOURCE_LINKS` on). Verify the deployed server
+- [x] 6.2 Commit, push and redeploy (default `SOURCE_LINKS` on). Verify the deployed server
       returns `sourceUrl` for an announcement and the boot log is clean, then run the live oracle.
-- [ ] 6.3 Measure response-size change on real output (`get_course_content` for the 102-topic
+- [x] 6.3 Measure response-size change on real output (`get_course_content` for the 102-topic
       course, `get_announcements`, `get_assignments`) against the design's estimates (+25% and +14%).
       If the tree exceeds the threshold you choose, decide whether large trees drop per-topic links
       by default and record the decision in `design.md`. Verify by the before/after byte counts in

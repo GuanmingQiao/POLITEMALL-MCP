@@ -53,8 +53,30 @@ assignment folder, calendar event or staff role in the account's POLITEMall cour
 Re-run the enrolled-course rows (and the bad-course-id control, expected "The MyCourse doesn't
 exist.") after signing in to STEP again, following `test-oracle/verify-step-links.md`.
 
-## Still to do (needs the deployed server)
+## Still to do (superseded by the post-deployment section below)
 
 - 5.1 `run-oracle.mjs --collect-links` against the deployed server, then the same checks on the
   links actually returned.
 - 5.4 the six new oracle cases (T087–T092) run together with the previous 86.
+## Post-deployment run (2026-09-21, commit 02cb5e0)
+
+Deployed to the EC2 instance; boot log clean (both tenants resolve to le 1.97, lp 1.63).
+
+- **Live oracle:** 91 of 92 cases pass (the previous 86 plus the new T087–T092). The one failure,
+  T053 (`get_classlist` for `nyp:48915`), is data drift: the class now has 2743 learners, the oracle
+  recorded 2746. Not a code regression; the expectation needs re-reading from D2L directly.
+- **Links returned:** `run-oracle.mjs --collect-links` collected 446 links (200 unique): NYP 46 page +
+  380 item, POLITEMall 6 page + 14 item, none on an unknown host. T087–T092 assert each row's host,
+  the page URL, the source name and that every `...Sgt` equals its UTC value.
+- **Link check on those returned links: NOT DONE.** The browser sessions were reset and are signed out
+  (Microsoft sign-in), and signing in needs the user. Run `verify-links.js` on the 61-link sample
+  once signed in. Note for that run: `get_assignments` grade-only rows link the *grades page*, so their
+  item name must not be used as the title check.
+- **Response size** (real output, 102-topic course and 10 announcements): `get_course_content`
+  48,155 chars against the design's 37 KB baseline (about +30%; estimate was +25%);
+  `get_announcements` (10) 8,865 chars against about 7 KB (about +27%, including the provenance block and
+  the `dateSgt` fields). Decision: keep per-topic links by default; `maxDepth`, `moduleTitle`,
+  `typeFilter` already narrow a tree, and `SOURCE_LINKS=off` is the escape hatch.
+- **Kill switch on the live server (6.4): not exercised**; it would switch evidence links off for real
+  users while running. Covered by the automated test that compares off-state results with the
+  pre-change shape.

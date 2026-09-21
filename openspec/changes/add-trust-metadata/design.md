@@ -325,5 +325,6 @@ return the Announcements-page feed is a separate behaviour change and stays out 
 - Should `get_step_announcements` also return the Announcements-page feed (`/announcements/paging`,
   currently a different item) so both feeds a user can see are covered? It changes tool behaviour,
   so it is deliberately not part of this change; the link plan is correct either way.
-- Should very large content trees (> ~60 topics) drop per-topic links by default? Decide from the
-  measurement in task 6.3; either answer keeps the specs true.
+- ~~Should very large content trees (> ~60 topics) drop per-topic links by default?~~ Decided from the
+  measurement in task 6.3 (102-topic tree: 48 KB, about +30%): keep them; existing filters and
+  `SOURCE_LINKS=off` cover the cost.
