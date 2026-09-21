@@ -6,6 +6,8 @@ import { resolveD2lPath, resolveD2lQuery } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { fetchClasslist } from "../api/classlist.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { addSgt, linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 interface SurveyAttemptData {
@@ -68,6 +70,10 @@ export function registerGetSurveyResults(server: McpServer, ctx: ToolContext): v
       annotations: READ_ONLY,
     },
     async ({ courseId, surveyId, studentUserId }) =>
-      runForD2LCourse(ctx, courseId, (school, c, id) => getSurveyResults(school, c, id, surveyId, studentUserId))
+      runForD2LCourse(ctx, courseId, async (school, c, id) => {
+        const rows = await getSurveyResults(school, c, id, surveyId, studentUserId);
+        // The item-level grader page is unverified, so the survey list is the page linked.
+        return linked(rows.map((r) => addSgt(r, ["started", "completed"])), { pageUrl: link.surveyList(school, id) });
+      })
   );
 }

@@ -52,7 +52,8 @@ export function registerCallD2lOperation(server: McpServer, ctx: ToolContext): v
 
       try {
         const result = await callD2lOperation(targetSchool, cookieHeader, operation, pathParams ?? {}, queryParams ?? {}, orgUnitId);
-        return toolResult({ operation, result });
+        // Raw passthrough: no item links, only where and when it was read.
+        return toolResult({ operation, result }, [targetSchool]);
       } catch (err) {
         if (err instanceof InvalidRouteParamsError || err instanceof UnsupportedOperationError) {
           return errorResult(err.message);

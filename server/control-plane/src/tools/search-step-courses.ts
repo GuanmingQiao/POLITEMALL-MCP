@@ -3,6 +3,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolContext } from "../types/tool-context.js";
 import * as step from "../api/step-client.js";
 import { READ_ONLY } from "./schemas.js";
+import { stepLink } from "../utils/deep-links.js";
+import { addSgt, linked, withSourceUrl } from "./provenance.js";
 import { runStep } from "./helpers.js";
 
 export function registerSearchStepCourses(server: McpServer, ctx: ToolContext): void {
@@ -18,6 +20,13 @@ export function registerSearchStepCourses(server: McpServer, ctx: ToolContext): 
       },
       annotations: READ_ONLY,
     },
-    async ({ query, maxResults }) => runStep(ctx, (c) => step.searchCourses(c, query ?? "", maxResults ?? 100))
+    async ({ query, maxResults }) => runStep(ctx, async (c) => {
+        const entries = await step.searchCoursesWithIds(c, query ?? "", maxResults ?? 100);
+        return linked(
+          // The page is keyed on the catalogue entry id, never on course.courseId.
+          entries.map(({ course, catalogueId }) => withSourceUrl(addSgt(course, ["startTime", "endTime"]), stepLink.catalogueCourse(catalogueId))),
+          { pageUrl: stepLink.home() }
+        );
+      })
   );
 }

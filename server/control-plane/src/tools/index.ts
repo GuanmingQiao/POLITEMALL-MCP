@@ -1,5 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolContext } from "../types/tool-context.js";
+import { sourceLinksEnabled } from "../utils/config.js";
+import { LINK_POLICY, linkDescription } from "./link-policy.js";
 import { registerCallD2lOperation } from "./call-d2l-operation.js";
 import { registerGetAllFinalGrades } from "./get-all-final-grades.js";
 import { registerGetAnnouncements } from "./get-announcements.js";
@@ -44,7 +46,16 @@ import { registerWhoami } from "./whoami.js";
 
 // One file per tool. The same set is registered whether the server runs in the cloud or locally:
 // tools only ever see a ToolContext, never where the caller's sessions are stored.
+// When evidence links are on, each tool that returns them says so in its description, appended
+// here from the link policy so the wording lives in one place.
+function describeLinks(server: McpServer): void {
+  const original = server.registerTool.bind(server) as (name: string, config: { description?: string }, cb: unknown) => unknown;
+  (server as unknown as { registerTool: typeof original }).registerTool = (name, config, cb) =>
+    original(name, { ...config, description: (config.description ?? "") + linkDescription(LINK_POLICY[name]) }, cb);
+}
+
 export function registerAllTools(server: McpServer, ctx: ToolContext): void {
+  if (sourceLinksEnabled()) describeLinks(server);
   registerCallD2lOperation(server, ctx);
   registerGetAllFinalGrades(server, ctx);
   registerGetAnnouncements(server, ctx);

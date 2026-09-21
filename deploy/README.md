@@ -35,6 +35,14 @@ ever changes a response shape a curated tool depends on, pin that product back w
 change by setting `D2L_LE_VERSION` and/or `D2L_LP_VERSION` (e.g. `D2L_LE_VERSION=1.75`) in the
 container environment.
 
+**Evidence links** (`sourceUrl` / `pageUrl`, `provenance`, `...Sgt` times, and the citation rules
+sent to agents) are on by default. Both switches are read on every request, so changing one needs a
+container restart only, not a rebuild:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `SOURCE_LINKS` | `on` | `off` removes every link, provenance block, `...Sgt` field, footer block, citation instruction and tool-description note, returning the exact previous result shapes. Anything other than `on`/`off` (also `1`/`0`, `true`/`false`) means the default. |
+| `SOURCE_RESOURCE_LINKS` | `off` | `on` also appends one MCP `resource_link` content block per distinct page (addressed to the user, at most 25 per result). Ignored while `SOURCE_LINKS=off`. |
 ## Revoking a token
 
 There's no admin-side revocation UI — tokens are self-issued and self-service by

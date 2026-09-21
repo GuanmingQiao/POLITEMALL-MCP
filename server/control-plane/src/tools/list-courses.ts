@@ -2,6 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolContext } from "../types/tool-context.js";
 import { listCourses } from "../api/courses.js";
 import { READ_ONLY } from "./schemas.js";
+import { link, toId } from "../utils/deep-links.js";
+import { withSourceUrl } from "./provenance.js";
 import { acrossSchoolsResult } from "./helpers.js";
 
 export function registerListCourses(server: McpServer, ctx: ToolContext): void {
@@ -14,6 +16,12 @@ export function registerListCourses(server: McpServer, ctx: ToolContext): void {
       inputSchema: {},
       annotations: READ_ONLY,
     },
-    async () => acrossSchoolsResult(ctx, "courses", (school, cookieHeader) => listCourses(school, cookieHeader))
+    async () =>
+      acrossSchoolsResult(
+        ctx,
+        "courses",
+        (school, cookieHeader) => listCourses(school, cookieHeader),
+        (c) => withSourceUrl(c, link.courseHome(c.school, toId(c.courseId.split(":")[1])))
+      )
   );
 }

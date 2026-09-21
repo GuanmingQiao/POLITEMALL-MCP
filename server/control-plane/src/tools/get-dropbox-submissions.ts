@@ -6,7 +6,17 @@ import { resolveD2lPath } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { fetchClasslist } from "../api/classlist.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { getCourseAccess } from "../api/courses.js";
+import { link } from "../utils/deep-links.js";
+import { addSgt, linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
+
+// Roles whose folder view is the grading page. Anything else (Learner, or a role we cannot read)
+// is sent to the learner-facing page of the same folder, which every enrolled role may open.
+const GRADER_ROLE = /(instructor|teacher|tutor|teaching assistant|\bta\b|grader|marker|lecturer|facilitator|course (designer|coordinator|admin))/i;
+export function isGraderRole(role: string | null | undefined): boolean {
+  return GRADER_ROLE.test(role ?? "");
+}
 
 interface DropboxFile {
   FileId: number;
@@ -87,6 +97,19 @@ export function registerGetDropboxSubmissions(server: McpServer, ctx: ToolContex
       },
       annotations: READ_ONLY,
     },
-    async ({ courseId, folderId }) => runForD2LCourse(ctx, courseId, (school, c, id) => getDropboxSubmissions(school, c, id, folderId))
+    async ({ courseId, folderId }) =>
+      runForD2LCourse(ctx, courseId, async (school, c, id) => {
+        const rows = (await getDropboxSubmissions(school, c, id, folderId)).map((r) =>
+          addSgt({ ...r, submissions: r.submissions.map((s) => addSgt(s, ["submittedDate"])) }, ["completionDate"])
+        );
+        // The page to compare with depends on the caller's role: a grader sees the folder list they
+        // manage, a learner the folder page itself. Only ask D2L when links are actually on.
+        let pageUrl = link.assignment(school, id, folderId);
+        if (link.graderAssignments(school, id)) {
+          const access = await getCourseAccess(school, c, id).catch(() => undefined);
+          if (access?.enrolled && isGraderRole(access.role)) pageUrl = link.graderAssignments(school, id);
+        }
+        return linked(rows, { pageUrl });
+      })
   );
 }

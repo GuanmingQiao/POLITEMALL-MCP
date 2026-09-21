@@ -3,6 +3,8 @@ import type { ToolContext } from "../types/tool-context.js";
 import type { D2LSchool } from "../types/schools.js";
 import { apiGet, versionedPath } from "../api/d2l-client.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 interface GroupCategoryData {
@@ -49,6 +51,6 @@ export function registerGetGroups(server: McpServer, ctx: ToolContext): void {
       inputSchema: { courseId: courseIdField },
       annotations: READ_ONLY,
     },
-    async ({ courseId }) => runForD2LCourse(ctx, courseId, (school, c, id) => getGroups(school, c, id))
+    async ({ courseId }) => runForD2LCourse(ctx, courseId, async (school, c, id) => linked(await getGroups(school, c, id), { pageUrl: link.groups(school, id) }))
   );
 }

@@ -4,6 +4,8 @@ import type { ToolContext } from "../types/tool-context.js";
 import { apiGet } from "../api/d2l-client.js";
 import { resolveD2lPath } from "../api/d2l-routes.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { addSgt, containsUrl, linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 export function registerGetDiscussionPosts(server: McpServer, ctx: ToolContext): void {
@@ -20,8 +22,13 @@ export function registerGetDiscussionPosts(server: McpServer, ctx: ToolContext):
       annotations: READ_ONLY,
     },
     async ({ courseId, forumId, topicId }) =>
-      runForD2LCourse(ctx, courseId, (school, cookie, id) =>
-        apiGet(school, resolveD2lPath("le.discussions.postsList", { forumId, topicId }, id), cookie)
-      )
+      runForD2LCourse(ctx, courseId, async (school, cookie, id) => {
+        const posts = await apiGet<Record<string, unknown>[]>(school, resolveD2lPath("le.discussions.postsList", { forumId, topicId }, id), cookie);
+        // Posts are written by other people: any link inside one is theirs, not evidence.
+        return linked(posts.map((p) => addSgt(p, ["DatePosted"])), {
+          pageUrl: link.discussionTopic(school, id, topicId),
+          untrusted: containsUrl(JSON.stringify(posts)),
+        });
+      })
   );
 }

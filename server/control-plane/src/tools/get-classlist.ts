@@ -9,6 +9,8 @@ import type { ToolContext } from "../types/tool-context.js";
 import type { ClasslistUser } from "../types/d2l.js";
 import { fetchClasslist } from "../api/classlist.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 // D2L's stock name for the student role; tenants that rename it use "Student".
@@ -90,13 +92,18 @@ export function registerGetClasslist(server: McpServer, ctx: ToolContext): void 
       annotations: READ_ONLY,
     },
     async ({ courseId, includeStudents, searchTerm, limit }) =>
-      runForD2LCourse(ctx, courseId, async (school, cookie, id) => ({
-        courseId,
-        ...summarizeClasslist(await fetchClasslist(school, cookie, id), {
-          includeStudents: includeStudents ?? false,
-          searchTerm,
-          limit: limit ?? 100,
-        }),
-      }))
+      runForD2LCourse(ctx, courseId, async (school, cookie, id) =>
+        linked(
+          {
+            courseId,
+            ...summarizeClasslist(await fetchClasslist(school, cookie, id), {
+              includeStudents: includeStudents ?? false,
+              searchTerm,
+              limit: limit ?? 100,
+            }),
+          },
+          { pageUrl: link.classlist(school, id) }
+        )
+      )
   );
 }

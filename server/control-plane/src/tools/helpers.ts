@@ -5,9 +5,13 @@ import { D2lVersionDiscoveryError } from "../api/d2l-versions.js";
 import { describeD2lFailure } from "../api/error-messages.js";
 import { getCourseAccess, parseCourseId } from "../api/courses.js";
 import { SessionExpiredError as StepSessionExpiredError } from "../api/step-client.js";
+import { link } from "../utils/deep-links.js";
+import { buildContent, unwrapLinked, type LinkOpts, type Source } from "./provenance.js";
 
-export function toolResult(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
+// `sources` names the systems the data was read from; with it (and evidence links on) the result
+// also says where and when it was read and which page to open. Without it the result is bare JSON.
+export function toolResult(data: unknown, sources: Source[] = [], opts: LinkOpts = {}) {
+  return { content: buildContent(data, sources, opts) };
 }
 
 export function errorResult(text: string) {
@@ -53,14 +57,15 @@ export async function explainD2lError(
 export async function runAcrossD2LSchools<T>(
   ctx: ToolContext,
   fn: (school: D2LSchool, cookieHeader: string) => Promise<T[]>
-): Promise<{ results: T[]; warnings: string[]; attempted: number; failed: number }> {
+): Promise<{ results: T[]; warnings: string[]; attempted: number; failed: number; succeeded: D2LSchool[] }> {
   const schools = ctx.connectedSchools().filter((s): s is D2LSchool => s === "politemall" || s === "nyp");
   if (schools.length === 0) {
-    return { results: [], warnings: [`No school connected yet. Connect at least one at ${ctx.connectUrl()}.`], attempted: 0, failed: 0 };
+    return { results: [], warnings: [`No school connected yet. Connect at least one at ${ctx.connectUrl()}.`], attempted: 0, failed: 0, succeeded: [] };
   }
 
   const results: T[] = [];
   const warnings: string[] = [];
+  const succeeded: D2LSchool[] = [];
   let attempted = 0;
   let failed = 0;
   for (const school of schools) {
@@ -69,6 +74,7 @@ export async function runAcrossD2LSchools<T>(
     attempted++;
     try {
       results.push(...(await fn(school, cookieHeader)));
+      succeeded.push(school);
     } catch (err) {
       const message = await explainD2lError(ctx, err, school, cookieHeader);
       if (message === undefined) throw err;
@@ -76,27 +82,45 @@ export async function runAcrossD2LSchools<T>(
       warnings.push(`${school}: ${message}`);
     }
   }
-  return { results, warnings, attempted, failed };
+  return { results, warnings, attempted, failed, succeeded };
+}
+
+// The link a cross-school result carries for the systems it read: one `pageUrl` for a single
+// school, a `pageUrls` map when it spans both. Undefined links are left out.
+export function schoolPages(schools: D2LSchool[], pageFor: (school: D2LSchool) => string | undefined): LinkOpts {
+  const pages: Partial<Record<Source, string>> = {};
+  for (const s of schools) {
+    const url = pageFor(s);
+    if (url) pages[s] = url;
+  }
+  const entries = Object.entries(pages);
+  if (entries.length === 0) return {};
+  return entries.length === 1 ? { pageUrl: entries[0][1] } : { pageUrls: pages };
 }
 
 // Wraps a cross-school tool's output. If every connected school failed there is no data to
-// return, so that is an error rather than a success carrying only warnings.
+// return, so that is an error rather than a success carrying only warnings. `decorate` adds the
+// per-row evidence link / Singapore-time companions; `pageFor` names the page that shows the rows
+// for a school (default: that school's home page).
 export async function acrossSchoolsResult<T>(
   ctx: ToolContext,
   key: string,
-  fn: (school: D2LSchool, cookieHeader: string) => Promise<T[]>
+  fn: (school: D2LSchool, cookieHeader: string) => Promise<T[]>,
+  decorate?: (row: T) => T,
+  pageFor: (school: D2LSchool) => string | undefined = (s) => link.schoolHome(s)
 ) {
-  const { results, warnings, attempted, failed } = await runAcrossD2LSchools(ctx, fn);
+  const { results, warnings, attempted, failed, succeeded } = await runAcrossD2LSchools(ctx, fn);
   if (attempted > 0 && failed === attempted) return errorResult(warnings.join("\n"));
-  return toolResult({ [key]: results, warnings: warnings.length ? warnings : undefined });
+  const rows = decorate ? results.map(decorate) : results;
+  return toolResult({ [key]: rows, warnings: warnings.length ? warnings : undefined }, succeeded, schoolPages(succeeded, pageFor));
 }
 
 // Single-course D2L tools resolve which school a "school:numericId" courseId
 // belongs to and use that school's cookie only.
-export async function runForD2LCourse<T>(
+export async function runForD2LCourse(
   ctx: ToolContext,
   courseId: string,
-  fn: (school: D2LSchool, cookieHeader: string, numericId: number) => Promise<T>
+  fn: (school: D2LSchool, cookieHeader: string, numericId: number) => Promise<unknown>
 ) {
   const { school, numericId } = parseCourseId(courseId);
   const cookieHeader = ctx.getCookieHeader(school);
@@ -104,7 +128,8 @@ export async function runForD2LCourse<T>(
     return errorResult(`Your ${school} session isn't connected. Connect it at ${ctx.connectUrl()}.`);
   }
   try {
-    return toolResult(await fn(school, cookieHeader, numericId));
+    const { data, opts } = unwrapLinked(await fn(school, cookieHeader, numericId));
+    return toolResult(data, [school], opts);
   } catch (err) {
     const message = await explainD2lError(ctx, err, school, cookieHeader, courseId);
     if (message === undefined) throw err;
@@ -112,13 +137,14 @@ export async function runForD2LCourse<T>(
   }
 }
 
-export async function runStep<T>(ctx: ToolContext, fn: (cookieHeader: string) => Promise<T>) {
+export async function runStep(ctx: ToolContext, fn: (cookieHeader: string) => Promise<unknown>) {
   const cookieHeader = ctx.getCookieHeader("step");
   if (!cookieHeader) {
     return errorResult(`Your STEP session isn't connected. Connect it at ${ctx.connectUrl()}.`);
   }
   try {
-    return toolResult(await fn(cookieHeader));
+    const { data, opts } = unwrapLinked(await fn(cookieHeader));
+    return toolResult(data, ["step"], opts);
   } catch (err) {
     if (err instanceof StepSessionExpiredError) {
       return errorResult(`Your STEP session expired — reconnect it at ${ctx.connectUrl()}.`);

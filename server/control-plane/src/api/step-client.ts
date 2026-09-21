@@ -1,5 +1,6 @@
-const HOST = "stms.polite.edu.sg";
-const BASE_URL = `https://${HOST}`;
+import { STEP_HOST } from "../utils/deep-links.js";
+
+const BASE_URL = `https://${STEP_HOST}`;
 
 export class SessionExpiredError extends Error {}
 
@@ -66,8 +67,19 @@ export interface StepCourse {
   endTime: string | null;
 }
 
+// An enrolled course with the extra id its page link needs. `institute` never appears in a tool
+// result; it only lets the tool layer build the link from what it just read.
+export interface EnrolledCourse {
+  course: StepCourse;
+  institute: number;
+}
+
 export async function listCourses(cookieHeader: string): Promise<StepCourse[]> {
-  const courses: StepCourse[] = [];
+  return (await listCoursesWithInstitute(cookieHeader)).map((c) => c.course);
+}
+
+export async function listCoursesWithInstitute(cookieHeader: string): Promise<EnrolledCourse[]> {
+  const courses: EnrolledCourse[] = [];
   for (let pageIndex = 1; pageIndex <= 10; pageIndex++) {
     const page = unwrap(
       await apiPost<Envelope<PagedResult<MyCourseItem>>>("/studentapi/api/v1/mycourse/paging", cookieHeader, {
@@ -79,13 +91,16 @@ export async function listCourses(cookieHeader: string): Promise<StepCourse[]> {
     );
     for (const item of page.items) {
       courses.push({
-        courseId: item.courseId,
-        name: item.courseName,
-        code: item.courseCode,
-        category: item.courseCategory,
-        type: item.courseType,
-        startTime: item.startTime,
-        endTime: item.endTime,
+        institute: item.institute,
+        course: {
+          courseId: item.courseId,
+          name: item.courseName,
+          code: item.courseCode,
+          category: item.courseCategory,
+          type: item.courseType,
+          startTime: item.startTime,
+          endTime: item.endTime,
+        },
       });
     }
     if (pageIndex >= page.pageCount) break;
@@ -94,6 +109,9 @@ export async function listCourses(cookieHeader: string): Promise<StepCourse[]> {
 }
 
 interface CatalogueItem {
+  // The catalogue entry (an intake) — the course page is keyed on this, NOT on courseId: opening
+  // the page with courseId renders a blank screen with no error.
+  id?: string;
   courseId: string;
   courseName: string;
   courseCode: string;
@@ -116,8 +134,17 @@ export interface CatalogueCourse {
 // The public course catalog — unlike listCourses (your enrollments), this returns
 // every course STEP offers, matching what the "All courses" browse/search page
 // shows. searchContent narrows by keyword; omit it to browse everything.
+export interface CatalogueEntry {
+  course: CatalogueCourse;
+  catalogueId: string | null;
+}
+
 export async function searchCourses(cookieHeader: string, searchContent = "", maxResults = 100): Promise<CatalogueCourse[]> {
-  const courses: CatalogueCourse[] = [];
+  return (await searchCoursesWithIds(cookieHeader, searchContent, maxResults)).map((c) => c.course);
+}
+
+export async function searchCoursesWithIds(cookieHeader: string, searchContent = "", maxResults = 100): Promise<CatalogueEntry[]> {
+  const courses: CatalogueEntry[] = [];
   for (let pageIndex = 1; pageIndex <= 10 && courses.length < maxResults; pageIndex++) {
     const page = unwrap(
       await apiPost<Envelope<PagedResult<CatalogueItem>>>("/studentapi/api/v1/coursecatalogue/paging", cookieHeader, {
@@ -131,13 +158,16 @@ export async function searchCourses(cookieHeader: string, searchContent = "", ma
     );
     for (const item of page.items) {
       courses.push({
-        courseId: item.courseId,
-        name: item.courseName,
-        code: item.courseCode,
-        category: item.courseCategory,
-        type: item.courseType ?? null,
-        startTime: item.courseStart,
-        endTime: item.courseEnd,
+        catalogueId: item.id ?? null,
+        course: {
+          courseId: item.courseId,
+          name: item.courseName,
+          code: item.courseCode,
+          category: item.courseCategory,
+          type: item.courseType ?? null,
+          startTime: item.courseStart,
+          endTime: item.courseEnd,
+        },
       });
     }
     if (pageIndex >= page.pageCount) break;
@@ -183,11 +213,17 @@ interface SessionItem {
 // so this fetches the course detail first to find it (a course can have more than
 // one module; this uses the first).
 export async function getTimetable(cookieHeader: string, courseId: string): Promise<SessionItem[]> {
+  return (await getTimetableWithInstitute(cookieHeader, courseId)).sessions;
+}
+
+// The same sessions, plus the course's institute (needed for the course page link; not output).
+export async function getTimetableWithInstitute(cookieHeader: string, courseId: string): Promise<{ sessions: SessionItem[]; institute: number | null }> {
   const detail = unwrap(
     await apiGet<Envelope<MyCourseDetail>>(`/studentapi/api/v1/mycourse/mycourse/${courseId}`, cookieHeader)
   );
+  const institute = detail.myCourseSimpleDto?.institute ?? null;
   const moduleDetailId = detail.myModuleDetailsDtos[0]?.id;
-  if (!moduleDetailId) return [];
+  if (!moduleDetailId) return { sessions: [], institute };
 
   const page = unwrap(
     await apiPost<Envelope<PagedResult<SessionItem>>>("/studentapi/api/v1/mycourse/sessions/paging", cookieHeader, {
@@ -198,12 +234,14 @@ export async function getTimetable(cookieHeader: string, courseId: string): Prom
       id: moduleDetailId,
     })
   );
-  return page.items;
+  return { sessions: page.items, institute };
 }
 
 interface AnnouncementItem {
   announcementTitle: string;
   content: string;
+  // Present in the real response; only the date is used (Singapore-time companion).
+  publishDate?: string | null;
 }
 
 export async function getAnnouncements(cookieHeader: string): Promise<AnnouncementItem[]> {

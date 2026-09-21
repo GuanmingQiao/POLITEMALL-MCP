@@ -4,6 +4,8 @@ import type { ToolContext } from "../types/tool-context.js";
 import { resolveD2lPath } from "../api/d2l-routes.js";
 import { fetchQuestions } from "../api/questions.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { addSgt, linked, withSourceUrl } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 export function registerGetQuizQuestions(server: McpServer, ctx: ToolContext): void {
@@ -19,6 +21,8 @@ export function registerGetQuizQuestions(server: McpServer, ctx: ToolContext): v
       annotations: READ_ONLY,
     },
     async ({ courseId, quizId }) =>
-      runForD2LCourse(ctx, courseId, (school, cookie, id) => fetchQuestions(school, resolveD2lPath("le.quizzes.questions", { quizId }, id), cookie))
+      runForD2LCourse(ctx, courseId, async (school, cookie, id) =>
+        linked(await fetchQuestions(school, resolveD2lPath("le.quizzes.questions", { quizId }, id), cookie), { pageUrl: link.quiz(school, id, quizId) })
+      )
   );
 }

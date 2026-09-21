@@ -5,6 +5,8 @@ import { buildOrgUnitIdsCsv } from "../api/courses.js";
 import { resolveD2lPath, resolveD2lQuery } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { READ_ONLY } from "./schemas.js";
+import { link, toId } from "../utils/deep-links.js";
+import { addSgt, withSourceUrl } from "./provenance.js";
 import { acrossSchoolsResult } from "./helpers.js";
 
 export interface DueItem {
@@ -46,6 +48,12 @@ export function registerGetDueItems(server: McpServer, ctx: ToolContext): void {
       inputSchema: {},
       annotations: READ_ONLY,
     },
-    async () => acrossSchoolsResult(ctx, "dueItems", (school, cookieHeader) => getDueItems(school, cookieHeader))
+    async () => acrossSchoolsResult(
+        ctx,
+        "dueItems",
+        (school, cookieHeader) => getDueItems(school, cookieHeader),
+        // The item has no page of its own here, so each row points at its course.
+        (i) => withSourceUrl(addSgt(i, ["dueDate", "dateCompleted"]), link.courseHome(i.school, toId(i.orgUnitId)))
+      )
   );
 }

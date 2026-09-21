@@ -15,6 +15,8 @@ import { resolveD2lPath } from "../api/d2l-routes.js";
 import { D2lHttpError } from "../api/errors.js";
 import { htmlToMarkdown } from "../utils/html-to-markdown.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { addSgt, containsUrl, linked, withSourceUrl } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 interface TocTopic {
@@ -244,6 +246,21 @@ export async function getCourseContent(school: D2LSchool, cookieHeader: string, 
   };
 }
 
+// Evidence links for a built tree: each topic gets the page that opens it, and module/topic dates
+// get their Singapore-time companion. Done after buildTree so the tree itself stays a pure shape.
+export function decorateTree(tree: ContentNode[], school: D2LSchool, courseNumericId: number): ContentNode[] {
+  return tree.map((node) => {
+    if (node.type === "module") {
+      return addSgt({ ...node, children: decorateTree(node.children, school, courseNumericId) }, ["startDate", "endDate"]);
+    }
+    return withSourceUrl(addSgt(node, ["startDate", "endDate"]), link.contentTopic(school, courseNumericId, node.id));
+  });
+}
+
+function anyDescriptionHasUrl(tree: ContentNode[]): boolean {
+  return tree.some((n) => containsUrl(n.description) || (n.type === "module" && anyDescriptionHasUrl(n.children)));
+}
+
 export function registerGetCourseContent(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
     "get_course_content",
@@ -269,9 +286,12 @@ export function registerGetCourseContent(server: McpServer, ctx: ToolContext): v
       annotations: READ_ONLY,
     },
     async ({ courseId, typeFilter, moduleTitle, maxDepth }) =>
-      runForD2LCourse(ctx, courseId, async (school, cookie, id) => ({
-        courseId,
-        ...(await getCourseContent(school, cookie, id, { typeFilter: typeFilter ?? "all", moduleTitle, maxDepth })),
-      }))
+      runForD2LCourse(ctx, courseId, async (school, cookie, id) => {
+        const content = await getCourseContent(school, cookie, id, { typeFilter: typeFilter ?? "all", moduleTitle, maxDepth });
+        return linked(
+          { courseId, ...content, contentTree: decorateTree(content.contentTree, school, id) },
+          { pageUrl: link.contentRoot(school, id), untrusted: anyDescriptionHasUrl(content.contentTree) }
+        );
+      })
   );
 }

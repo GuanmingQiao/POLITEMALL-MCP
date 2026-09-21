@@ -4,6 +4,8 @@ import type { D2LSchool } from "../types/schools.js";
 import { resolveD2lPath } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 export interface FinalGradeForStudent {
@@ -40,6 +42,6 @@ export function registerGetAllFinalGrades(server: McpServer, ctx: ToolContext): 
       inputSchema: { courseId: courseIdField },
       annotations: READ_ONLY,
     },
-    async ({ courseId }) => runForD2LCourse(ctx, courseId, (school, c, id) => getAllFinalGrades(school, c, id))
+    async ({ courseId }) => runForD2LCourse(ctx, courseId, async (school, c, id) => linked(await getAllFinalGrades(school, c, id), { pageUrl: link.graderGradebook(school, id) }))
   );
 }

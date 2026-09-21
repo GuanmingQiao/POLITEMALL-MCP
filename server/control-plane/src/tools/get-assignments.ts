@@ -20,9 +20,10 @@ import { listCourses } from "../api/courses.js";
 import { D2lHttpError, NotFoundError, PermissionDeniedError, SessionExpiredError } from "../api/errors.js";
 import { htmlToMarkdown } from "../utils/html-to-markdown.js";
 import { mapWithConcurrency } from "../utils/concurrency.js";
-import { assignmentUrl, quizUrl, gradebookUrl } from "../utils/deep-links.js";
+import { assignmentUrl, quizUrl, gradebookUrl, link } from "../utils/deep-links.js";
+import { addSgt, containsUrl, linked, withSourceUrl } from "./provenance.js";
 import { READ_ONLY } from "./schemas.js";
-import { toolResult, errorResult, runForD2LCourse, runAcrossD2LSchools } from "./helpers.js";
+import { toolResult, errorResult, runForD2LCourse, runAcrossD2LSchools, schoolPages } from "./helpers.js";
 
 interface Rubric {
   Name: string;
@@ -209,6 +210,21 @@ function why(err: unknown): string {
   return err instanceof D2lHttpError ? `D2L answered ${err.status}` : "unexpected error";
 }
 
+// Evidence link (verified pattern for this school only) and Singapore-time companions. The legacy
+// `url` field is left exactly as it was.
+export function decorateAssignment(item: AssignmentItem, school: D2LSchool, courseNumericId: number): AssignmentItem {
+  const sourceUrl =
+    item.type === "assignment"
+      ? link.assignment(school, courseNumericId, item.id)
+      : item.type === "quiz"
+        ? link.quiz(school, courseNumericId, item.id)
+        : link.myGrades(school, courseNumericId);
+  const withDates = addSgt(item, ["dueDate", "startDate", "endDate"]);
+  const submission = withDates.submission as { submittedDate?: string } | null | undefined;
+  const dated = submission && typeof submission === "object" ? { ...withDates, submission: addSgt(submission, ["submittedDate"]) } : withDates;
+  return withSourceUrl(dated, sourceUrl);
+}
+
 export async function fetchCourseAssignments(
   school: D2LSchool,
   cookieHeader: string,
@@ -300,18 +316,25 @@ export function registerGetAssignments(server: McpServer, ctx: ToolContext): voi
       if (courseId) {
         return runForD2LCourse(ctx, courseId, async (school, cookie, id) => {
           const { items, warnings } = await fetchCourseAssignments(school, cookie, id);
-          return { courseId, count: items.length, assignments: items, ...(warnings.length ? { warnings } : {}) };
+          const shown = items.map((i) => decorateAssignment(i, school, id));
+          return linked(
+            { courseId, count: items.length, assignments: shown, ...(warnings.length ? { warnings } : {}) },
+            { untrusted: shown.some((i) => containsUrl(i.instructions)) }
+          );
         });
       }
 
       const skippedCourses: string[] = [];
       const courseWarnings: string[] = [];
       let withoutAssignments = 0;
-      const { results, warnings, attempted, failed } = await runAcrossD2LSchools(ctx, async (school, cookie) => {
+      const { results, warnings, attempted, failed, succeeded } = await runAcrossD2LSchools(ctx, async (school, cookie) => {
         const courses = (await listCourses(school, cookie)).filter((c) => c.isActive);
         const per = await mapWithConcurrency(courses, 3, async (course) => {
           try {
-            const { items, warnings: w } = await fetchCourseAssignments(school, cookie, Number(course.courseId.split(":")[1]));
+            const numericId = Number(course.courseId.split(":")[1]);
+            const fetchedItems = await fetchCourseAssignments(school, cookie, numericId);
+            const items = fetchedItems.items.map((i) => decorateAssignment(i, school, numericId));
+            const w = fetchedItems.warnings;
             courseWarnings.push(...w.map((m) => `${course.courseId}: ${m}`));
             if (items.length === 0) {
               withoutAssignments++;
@@ -331,12 +354,16 @@ export function registerGetAssignments(server: McpServer, ctx: ToolContext): voi
 
       if (attempted > 0 && failed === attempted) return errorResult(warnings.join("\n"));
       const allWarnings = [...warnings, ...courseWarnings];
-      return toolResult({
-        courses: results,
-        coursesWithoutAssignments: withoutAssignments,
-        ...(skippedCourses.length ? { skippedCourses } : {}),
-        ...(allWarnings.length ? { warnings: allWarnings } : {}),
-      });
+      return toolResult(
+        {
+          courses: results,
+          coursesWithoutAssignments: withoutAssignments,
+          ...(skippedCourses.length ? { skippedCourses } : {}),
+          ...(allWarnings.length ? { warnings: allWarnings } : {}),
+        },
+        succeeded,
+        { ...schoolPages(succeeded, () => undefined), untrusted: results.some((c) => c.assignments.some((i) => containsUrl(i.instructions))) }
+      );
     }
   );
 }

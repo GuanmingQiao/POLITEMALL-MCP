@@ -1,4 +1,4 @@
-﻿// Shared harness for tests that drive the real MCP server through a real MCP client, with the real
+// Shared harness for tests that drive the real MCP server through a real MCP client, with the real
 // (temp-file) token store and encrypted cookie storage. Only D2L's HTTP responses are mocked.
 // Import this before any src module: it points the token store at a temp file first.
 import { before } from "node:test";
@@ -40,7 +40,7 @@ export function mockD2l(t: TestContext, handler: Handler): string[] {
   return seen;
 }
 
-export async function connect(schools: ("nyp" | "politemall")[]) {
+export async function connect(schools: ("nyp" | "politemall" | "step")[]) {
   const token = await issueToken();
   for (const s of schools) await saveCookieHeader(token, s, "d2lSessionVal=x");
   const server = buildMcpServer(createTokenContext(token));
@@ -49,8 +49,15 @@ export async function connect(schools: ("nyp" | "politemall")[]) {
   await Promise.all([client.connect(ct), server.connect(st)]);
   return {
     async call(name: string, args: Record<string, unknown> = {}) {
-      const r = (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
-      return { isError: r.isError === true, text: r.content[0].text };
+      const r = (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: ({ type: string; text?: string } & Record<string, unknown>)[] };
+      // `text` is block 0 (the JSON document); `blocks` is everything the result carried.
+      return { isError: r.isError === true, text: r.content[0].text as string, blocks: r.content };
+    },
+    async tools() {
+      return (await client.listTools()).tools;
+    },
+    instructions() {
+      return client.getInstructions();
     },
     async close() {
       await client.close();

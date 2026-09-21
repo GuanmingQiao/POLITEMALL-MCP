@@ -6,6 +6,8 @@ import { resolveD2lPath, resolveD2lQuery } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { fetchClasslist } from "../api/classlist.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { addSgt, linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 interface QuizAttemptData {
@@ -74,6 +76,9 @@ export function registerGetQuizResults(server: McpServer, ctx: ToolContext): voi
       annotations: READ_ONLY,
     },
     async ({ courseId, quizId, studentUserId }) =>
-      runForD2LCourse(ctx, courseId, (school, c, id) => getQuizResults(school, c, id, quizId, studentUserId))
+      runForD2LCourse(ctx, courseId, async (school, c, id) => {
+        const rows = await getQuizResults(school, c, id, quizId, studentUserId);
+        return linked(rows.map((r) => addSgt(r, ["started", "completed"])), { pageUrl: link.graderQuizzes(school, id) });
+      })
   );
 }

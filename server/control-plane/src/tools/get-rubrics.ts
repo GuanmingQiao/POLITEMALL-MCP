@@ -5,7 +5,20 @@ import type { D2LSchool } from "../types/schools.js";
 import { apiGet } from "../api/d2l-client.js";
 import { resolveD2lPath, resolveD2lQuery } from "../api/d2l-routes.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
+
+// The page of the object a rubric is attached to (an assignment or a discussion topic), else the
+// course home — a rubric has no page of its own.
+export function rubricPage(school: D2LSchool, courseNumericId: number, opts: GetRubricsOptions): string | undefined {
+  const type = opts.objectType?.toLowerCase();
+  if (opts.rubricId === undefined && opts.objectId !== undefined) {
+    if (type === "dropbox") return link.assignment(school, courseNumericId, opts.objectId) ?? link.courseHome(school, courseNumericId);
+    if (type === "discussion") return link.discussionTopic(school, courseNumericId, opts.objectId) ?? link.courseHome(school, courseNumericId);
+  }
+  return link.courseHome(school, courseNumericId);
+}
 
 // Valence scopes rubric listing to a specific gradable object (a discussion topic, dropbox
 // folder, etc.) — there is no "all rubrics in this course" route. get_rubrics therefore has
@@ -46,6 +59,9 @@ export function registerGetRubrics(server: McpServer, ctx: ToolContext): void {
       annotations: READ_ONLY,
     },
     async ({ courseId, rubricId, objectType, objectId }) =>
-      runForD2LCourse(ctx, courseId, (school, c, id) => getRubrics(school, c, id, { rubricId, objectType, objectId }))
+      runForD2LCourse(ctx, courseId, async (school, c, id) => {
+        const opts = { rubricId, objectType, objectId };
+        return linked(await getRubrics(school, c, id, opts), { pageUrl: rubricPage(school, id, opts) });
+      })
   );
 }

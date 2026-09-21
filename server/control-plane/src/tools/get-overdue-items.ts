@@ -4,6 +4,8 @@ import type { D2LSchool } from "../types/schools.js";
 import { resolveD2lPath } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { READ_ONLY } from "./schemas.js";
+import { link, toId } from "../utils/deep-links.js";
+import { addSgt, withSourceUrl } from "./provenance.js";
 import { acrossSchoolsResult } from "./helpers.js";
 
 export interface OverdueItem {
@@ -35,6 +37,11 @@ export function registerGetOverdueItems(server: McpServer, ctx: ToolContext): vo
       inputSchema: {},
       annotations: READ_ONLY,
     },
-    async () => acrossSchoolsResult(ctx, "overdueItems", (school, cookieHeader) => getOverdueItems(school, cookieHeader))
+    async () => acrossSchoolsResult(
+        ctx,
+        "overdueItems",
+        (school, cookieHeader) => getOverdueItems(school, cookieHeader),
+        (i) => withSourceUrl(addSgt(i, ["dueDate"]), link.courseHome(i.school, toId(i.orgUnitId)))
+      )
   );
 }

@@ -6,6 +6,8 @@ import type { RichText } from "../types/d2l.js";
 import { apiGet } from "../api/d2l-client.js";
 import { resolveD2lPath } from "../api/d2l-routes.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { addSgt, containsUrl, linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 interface MyDropboxSubmissionEntry {
@@ -69,6 +71,16 @@ export function registerGetMyDropboxSubmission(server: McpServer, ctx: ToolConte
       },
       annotations: READ_ONLY,
     },
-    async ({ courseId, folderId }) => runForD2LCourse(ctx, courseId, (school, c, id) => getMyDropboxSubmission(school, c, id, folderId))
+    async ({ courseId, folderId }) =>
+      runForD2LCourse(ctx, courseId, async (school, c, id) => {
+        const entries = await getMyDropboxSubmission(school, c, id, folderId);
+        const shown = entries.map((e) =>
+          addSgt({ ...e, submissions: e.submissions.map((s) => addSgt(s, ["submittedDate"])) }, ["completionDate"])
+        );
+        return linked(shown, {
+          pageUrl: link.assignment(school, id, folderId),
+          untrusted: entries.some((e) => containsUrl(e.feedbackText) || e.submissions.some((s) => containsUrl(s.comment))),
+        });
+      })
   );
 }

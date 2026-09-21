@@ -15,7 +15,9 @@ import { D2lHttpError } from "../api/errors.js";
 import { htmlToMarkdown } from "../utils/html-to-markdown.js";
 import { mapWithConcurrency } from "../utils/concurrency.js";
 import { READ_ONLY } from "./schemas.js";
-import { toolResult, errorResult, runForD2LCourse, runAcrossD2LSchools } from "./helpers.js";
+import { link, toId } from "../utils/deep-links.js";
+import { addSgt, containsUrl, linked, withSourceUrl } from "./provenance.js";
+import { toolResult, errorResult, runForD2LCourse, runAcrossD2LSchools, schoolPages } from "./helpers.js";
 
 export interface NewsItem {
   Id: number;
@@ -85,6 +87,11 @@ export function mapNewsItem(item: NewsItem): Announcement {
   };
 }
 
+// The announcement page, opened on the school it came from; date in Singapore time as the page shows it.
+export function decorateAnnouncement<A extends Announcement>(a: A, school: D2LSchool, courseNumericId: number | undefined): A {
+  return withSourceUrl(addSgt(a, ["date"]), link.announcement(school, courseNumericId, a.id));
+}
+
 async function fetchCourseNews(school: D2LSchool, cookieHeader: string, numericId: number): Promise<Announcement[]> {
   const items = await apiGet<NewsItem[]>(school, resolveD2lPath("le.news.list", {}, numericId), cookieHeader);
   return items.filter(isPublishedNewsItem).map(mapNewsItem);
@@ -109,12 +116,16 @@ export function registerGetAnnouncements(server: McpServer, ctx: ToolContext): v
       if (courseId) {
         return runForD2LCourse(ctx, courseId, async (school, cookie, id) => {
           const all = (await fetchCourseNews(school, cookie, id)).sort(newestFirst);
-          return { courseId, total: all.length, returned: Math.min(limit, all.length), announcements: all.slice(0, limit) };
+          const shown = all.slice(0, limit).map((a) => decorateAnnouncement(a, school, id));
+          return linked(
+            { courseId, total: all.length, returned: Math.min(limit, all.length), announcements: shown },
+            { pageUrl: link.announcementsList(school, id), untrusted: shown.some((a) => containsUrl(a.body)) }
+          );
         });
       }
 
       const skippedCourses: string[] = [];
-      const { results, warnings, attempted, failed } = await runAcrossD2LSchools(ctx, async (school, cookie) => {
+      const { results, warnings, attempted, failed, succeeded } = await runAcrossD2LSchools(ctx, async (school, cookie) => {
         const courses = (await listCourses(school, cookie)).filter((c) => c.isActive);
         const perCourse = await mapWithConcurrency(courses, 5, async (course) => {
           try {
@@ -135,13 +146,21 @@ export function registerGetAnnouncements(server: McpServer, ctx: ToolContext): v
 
       if (attempted > 0 && failed === attempted) return errorResult(warnings.join("\n"));
       const all = results.sort(newestFirst);
-      return toolResult({
-        total: all.length,
-        returned: Math.min(limit, all.length),
-        announcements: all.slice(0, limit),
-        ...(skippedCourses.length ? { skippedCourses } : {}),
-        ...(warnings.length ? { warnings } : {}),
+      const shown = all.slice(0, limit).map((a) => {
+        const [school, num] = (a.courseId ?? "").split(":");
+        return school === "nyp" || school === "politemall" ? decorateAnnouncement(a, school, toId(num)) : a;
       });
+      return toolResult(
+        {
+          total: all.length,
+          returned: Math.min(limit, all.length),
+          announcements: shown,
+          ...(skippedCourses.length ? { skippedCourses } : {}),
+          ...(warnings.length ? { warnings } : {}),
+        },
+        succeeded,
+        { ...schoolPages(succeeded, () => undefined), untrusted: shown.some((a) => containsUrl(a.body)) }
+      );
     }
   );
 }

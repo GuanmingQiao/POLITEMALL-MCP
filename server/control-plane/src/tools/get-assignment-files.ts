@@ -12,7 +12,8 @@ import { apiGet, apiGetBuffer, schoolBaseUrl, FileTooLargeError } from "../api/d
 import { resolveD2lPath } from "../api/d2l-routes.js";
 import { extractPdfText } from "../utils/pdf-text.js";
 import { officeDocumentText } from "../utils/zip-text.js";
-import { assignmentUrl } from "../utils/deep-links.js";
+import { assignmentUrl, link } from "../utils/deep-links.js";
+import { addSgt, containsUrl, linked, withSourceUrl } from "./provenance.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
 import { runForD2LCourse } from "./helpers.js";
 
@@ -133,30 +134,40 @@ export function registerGetAssignmentFiles(server: McpServer, ctx: ToolContext):
               `No attachment with id ${fileId} on assignment "${folder.Name}". Available: ${(folder.Attachments ?? []).map((a) => `${a.FileId} (${a.FileName})`).join(", ") || "none"}.`
             );
           }
-          return {
-            courseId,
-            folderId: folder.Id,
-            folderName: folder.Name,
-            url: assignmentUrl(base, id, folder.Id),
-            file: await readAttachment(school, cookie, id, folder.Id, attachment, extractText ?? true, maxChars ?? 12000),
-          };
+          const file = await readAttachment(school, cookie, id, folder.Id, attachment, extractText ?? true, maxChars ?? 12000);
+          return linked(
+            { courseId, folderId: folder.Id, folderName: folder.Name, url: assignmentUrl(base, id, folder.Id), file },
+            { pageUrl: link.assignment(school, id, folder.Id), untrusted: containsUrl(JSON.stringify(file)) }
+          );
         }
 
         const withFiles = folders
           .filter((f) => (f.Attachments ?? []).length > 0 || (f.LinkAttachments ?? []).length > 0)
-          .map((f) => ({
-            folderId: f.Id,
-            folderName: f.Name,
-            dueDate: f.DueDate,
-            url: assignmentUrl(base, id, f.Id),
-            attachments: (f.Attachments ?? []).map(describeAttachment),
-            ...((f.LinkAttachments ?? []).length ? { links: f.LinkAttachments!.map((l) => ({ name: l.LinkName ?? null, url: l.Href ?? null })) } : {}),
-          }));
-        return {
-          courseId,
-          assignments: withFiles,
-          ...(withFiles.length === 0 ? { note: "No assignment in this course has an attached file or link." } : {}),
-        };
+          .map((f) =>
+            withSourceUrl(
+              addSgt(
+                {
+                  folderId: f.Id,
+                  folderName: f.Name,
+                  dueDate: f.DueDate,
+                  url: assignmentUrl(base, id, f.Id),
+                  attachments: (f.Attachments ?? []).map(describeAttachment),
+                  ...((f.LinkAttachments ?? []).length ? { links: f.LinkAttachments!.map((l) => ({ name: l.LinkName ?? null, url: l.Href ?? null })) } : {}),
+                },
+                ["dueDate"]
+              ),
+              link.assignment(school, id, f.Id)
+            )
+          );
+        return linked(
+          {
+            courseId,
+            assignments: withFiles,
+            ...(withFiles.length === 0 ? { note: "No assignment in this course has an attached file or link." } : {}),
+          },
+          // Instructor-attached links (the `links` entries) are text somebody else wrote.
+          { untrusted: withFiles.some((f) => "links" in f) }
+        );
       })
   );
 }

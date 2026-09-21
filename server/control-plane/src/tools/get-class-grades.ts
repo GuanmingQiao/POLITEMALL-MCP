@@ -6,6 +6,8 @@ import { resolveD2lPath } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { fetchClasslist } from "../api/classlist.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 interface GradeDefinition {
@@ -67,6 +69,6 @@ export function registerGetClassGrades(server: McpServer, ctx: ToolContext): voi
       inputSchema: { courseId: courseIdField },
       annotations: READ_ONLY,
     },
-    async ({ courseId }) => runForD2LCourse(ctx, courseId, (school, c, id) => getClassGrades(school, c, id))
+    async ({ courseId }) => runForD2LCourse(ctx, courseId, async (school, c, id) => linked(await getClassGrades(school, c, id), { pageUrl: link.graderGradebook(school, id) }))
   );
 }

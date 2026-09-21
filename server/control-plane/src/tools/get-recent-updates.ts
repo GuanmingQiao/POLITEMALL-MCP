@@ -5,6 +5,8 @@ import { buildOrgUnitIdsCsv } from "../api/courses.js";
 import { resolveD2lPath, resolveD2lQuery } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { READ_ONLY } from "./schemas.js";
+import { link, toId } from "../utils/deep-links.js";
+import { addSgt, withSourceUrl } from "./provenance.js";
 import { acrossSchoolsResult } from "./helpers.js";
 
 export interface RecentUpdateCount {
@@ -53,6 +55,11 @@ export function registerGetRecentUpdates(server: McpServer, ctx: ToolContext): v
       inputSchema: {},
       annotations: READ_ONLY,
     },
-    async () => acrossSchoolsResult(ctx, "updates", (school, cookieHeader) => getRecentUpdates(school, cookieHeader))
+    async () => acrossSchoolsResult(
+        ctx,
+        "updates",
+        (school, cookieHeader) => getRecentUpdates(school, cookieHeader),
+        (u) => withSourceUrl(u, link.courseHome(u.school, toId(u.orgUnitId)))
+      )
   );
 }

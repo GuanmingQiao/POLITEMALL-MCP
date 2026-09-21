@@ -4,6 +4,8 @@ import type { ToolContext } from "../types/tool-context.js";
 import { resolveD2lPath } from "../api/d2l-routes.js";
 import { fetchAllPages } from "../api/paginate.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { addSgt, linked, withSourceUrl } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 export function registerGetSurveyAttempts(server: McpServer, ctx: ToolContext): void {
@@ -19,6 +21,9 @@ export function registerGetSurveyAttempts(server: McpServer, ctx: ToolContext): 
       annotations: READ_ONLY,
     },
     async ({ courseId, surveyId }) =>
-      runForD2LCourse(ctx, courseId, (school, cookie, id) => fetchAllPages(school, resolveD2lPath("le.surveys.attempts", { surveyId }, id), cookie))
+      runForD2LCourse(ctx, courseId, async (school, cookie, id) => {
+        const attempts = await fetchAllPages<Record<string, unknown>>(school, resolveD2lPath("le.surveys.attempts", { surveyId }, id), cookie);
+        return linked(attempts.map((a) => addSgt(a, ["Started", "Completed"])), { pageUrl: link.survey(school, id, surveyId) });
+      })
   );
 }

@@ -5,6 +5,8 @@ import type { RichText } from "../types/d2l.js";
 import { apiGet } from "../api/d2l-client.js";
 import { resolveD2lPath } from "../api/d2l-routes.js";
 import { READ_ONLY, courseIdField } from "./schemas.js";
+import { link } from "../utils/deep-links.js";
+import { containsUrl, linked } from "./provenance.js";
 import { runForD2LCourse } from "./helpers.js";
 
 export interface CourseOverview {
@@ -30,6 +32,10 @@ export function registerGetCourseOverview(server: McpServer, ctx: ToolContext): 
       inputSchema: { courseId: courseIdField },
       annotations: READ_ONLY,
     },
-    async ({ courseId }) => runForD2LCourse(ctx, courseId, (school, c, id) => getCourseOverview(school, c, id))
+    async ({ courseId }) =>
+      runForD2LCourse(ctx, courseId, async (school, c, id) => {
+        const overview = await getCourseOverview(school, c, id);
+        return linked(overview, { pageUrl: link.courseHome(school, id), untrusted: containsUrl(overview.description) });
+      })
   );
 }

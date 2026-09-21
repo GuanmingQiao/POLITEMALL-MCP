@@ -105,6 +105,31 @@ but note its `catalogCode` values (e.g. `D-NP-06030001`) are a completely
 different ID space from Brightspace `courseId`s and can't be passed to
 `get_grades`/`get_course_content`/etc.
 
+## Evidence links
+
+Tool results let you check what you were told. Where a result has a page on the school's site, it
+carries the link next to the data:
+
+- **`sourceUrl`** on an item (an announcement, quiz, assignment, content topic, discussion topic,
+  calendar event, STEP course, ...) opens that item. **`pageUrl`** on a result opens the page that
+  shows the whole result (the classlist, "my grades", a course's quiz list, STEP's home page). An
+  item with no verified page has no link at all, not a guessed one.
+- **`provenance`** (or, for results that are plain lists, a second text block) says which system the
+  data came from (NYP Brightspace, POLITEMall Brightspace, STEP) and when it was read.
+- **`...Sgt`** fields (`dueDateSgt`, `dateSgt`, ...) give the same instant as the original UTC value in
+  Singapore time (`+08:00`), which is what the sites display. The original value is never changed.
+- Links inside announcement, discussion or description text were written by other people; results
+  flag them (`untrustedLinksInText`) and they are never used as evidence.
+
+The server also sends citation rules to the connecting agent (cite the `sourceUrl`, never build or
+edit a link, say when there is none). A link opens only for someone signed in to that school (or
+STEP) in their browser, and it can show only what that person is already allowed to see. Every
+pattern is opened in a real session before it is emitted, and `test-oracle/verify-links.js`
+re-checks them (`test-oracle/verify-step-links.md` for STEP).
+
+Two environment switches (see [deploy/README.md](deploy/README.md)): `SOURCE_LINKS=off` removes all
+of the above and returns the previous result shapes; `SOURCE_RESOURCE_LINKS=on` additionally
+returns MCP `resource_link` blocks for clients that display them.
 ## Connecting
 
 There's no per-person account system — a token is just a random key that maps to
