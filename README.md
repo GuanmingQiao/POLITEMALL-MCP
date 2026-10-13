@@ -34,7 +34,7 @@ course belongs to, so just pass it through as-is to the other tools.
 | `get_recent_updates` | Counts of unread/pending activity (discussions, feedback, quizzes) across every course and connected school — a "what's new" feed |
 | `get_my_calendar_events` | Your calendar events across every course and connected school in one call, within a date window (default: 7 days ago to 60 days ahead) |
 | `get_course_content` | The course's module/topic tree — one call — with `typeFilter` (file/link/html/video), `moduleTitle` and `maxDepth` to keep it small; rich text as Markdown |
-| `get_content_topic` | Metadata for a single content topic — a drill-down from `get_course_content` |
+| `get_content_topic` | Metadata for a single content topic — a drill-down from `get_course_content`; for a PDF or DOCX file topic it also returns the file's text as `extractedText` (or `extractedTextUnavailable` if it is too large or unreadable) |
 | `get_course_overview` | The course description/overview content (the "Class Overview"/syllabus) |
 | `get_grades` | Grade items and your scores |
 | `get_my_final_grade` | Your calculated/adjusted final grade for a course |
