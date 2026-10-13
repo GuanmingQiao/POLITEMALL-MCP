@@ -111,15 +111,15 @@
 
 ## 5. Live verification
 
-- [ ] 5.1 Deploy and call `get_content_topic` against a real course containing a known
+- [x] 5.1 Deploy and call `get_content_topic` against a real course containing a known
       `.docx` and `.pdf` lesson topic (e.g. the `nyplms.polite.edu.sg` lesson topic
       referenced in `proposal.md`) with a real token, confirming each returns the attached
-      file's real extracted text.
+      file's real extracted text. Verified 2026-10-13 on the EC2 host: PDF topics (nyp:524042/9767706, 28,333 chars; nyp:1032348/15691220) and a DOCX topic (politemall:48909/4155378, 34,109 chars) each returned `extractedText` with all original metadata fields intact.
 - [ ] 5.2 Against the same or another real course, call `get_content_topic` on a non-file
       topic (a link or native page) and, if one is available, a file-type topic in an
       unsupported format (e.g. a `.pptx` lesson attachment), confirming the response is
       byte-for-byte identical in its existing fields to what it returned before this change
-      (no `extractedText`, no error).
+      (no `extractedText`, no error). Partial 2026-10-13: a `.pptx` topic (nyp:524042/8806566) and an `.html` file topic (politemall:48909/2135727) returned only their metadata (no `extractedText`, no error). No true link/native-page topic has been tried live yet; the 404 path is covered by unit test only.
 
 ## 6. Final verification
 
