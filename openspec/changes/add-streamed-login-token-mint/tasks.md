@@ -2,8 +2,8 @@
 
 > **2026-10-15:** the verification gate (1.1-1.5) was skipped at the user's explicit instruction; those
 > tasks stay unchecked and the assumptions they would have tested are recorded in design.md ("Implementation
-> notes"). Task 3.1 stays open only for its image-build smoke test, which needs Docker (not available on the
-> development machine) and happens at deploy (6.2). Full suite: 223/223 passing, including a real-Chromium
+> notes"). Task 3.1's image-build smoke test ran at deploy (6.2): Chromium starts inside the container on the host and
+> streams frames. Full suite: 223/223 passing, including a real-Chromium
 > sign-in, silent re-login, and the OAuth flow.
 
 ## 1. Verification gate (nothing in sections 2+ starts until 1.5 says GO)
@@ -23,7 +23,7 @@
 
 ## 3. Streamed sign-in
 
-- [ ] 3.1 Add Playwright and Chromium to the server image and a session manager that starts an isolated, memory-capped Chromium per sign-in with a concurrency cap and hard timeout; verify with tests that the cap rejects the extra session, timeouts kill it, and a build of the image runs a headless smoke test.
+- [x] 3.1 Add Playwright and Chromium to the server image and a session manager that starts an isolated, memory-capped Chromium per sign-in with a concurrency cap and hard timeout; verify with tests that the cap rejects the extra session, timeouts kill it, and a build of the image runs a headless smoke test.
 - [x] 3.2 Implement the one-time sign-in link and streaming endpoint (CDP screencast frames out, mouse and keyboard events in over WebSocket, no credentials or tokens in logs); verify with tests that links work once, expire, and that a captured log of a simulated typed password contains neither it nor any input event payload.
 - [x] 3.3 Detect sign-in completion (D2L home reached, XSRF token available), save storage state, mint the first token, close Chromium, and report success to the page; verify with a test that drives a stub login page through to a stored vault entry.
 - [x] 3.4 Implement silent re-login: launch headless with saved state, detect "reached D2L" versus "needs interaction", and either re-mint or return a session-expired result with a fresh link; verify with tests for both outcomes.
@@ -43,10 +43,10 @@
 ## 6. Docs and deploy
 
 - [x] 6.1 Rewrite `README.md` and `deploy/README.md` for URL-only connection in Claude Code and Claude Desktop, the trust model (server stores Microsoft sign-in state), capacity limits, and sign-out; verify by grep that no cookie-paste or STEP instructions remain.
-- [ ] 6.2 Back up `server/data/tokens.json`, deploy with `git pull` and `docker compose up -d --build`, remove the saml-test container and its temporary security group rule if still present, and verify startup logs and image memory use.
+- [x] 6.2 Back up `server/data/tokens.json`, deploy with `git pull` and `docker compose up -d --build`, remove the saml-test container and its temporary security group rule if still present, and verify startup logs and image memory use.
 
 ## 7. Live verification
 
-- [ ] 7.1 Connect Claude Code by URL only, sign in through the streamed page, and verify `whoami` and `list_courses` return both tenants.
-- [ ] 7.2 Verify a representative read on each tenant (for example `get_content_topic` on a known PDF returns `extractedText`), then wait past the token lifetime and verify a call renews without any prompt; record how long silent renewal lasts.
+- [x] 7.1 Connect Claude Code by URL only, sign in through the streamed page, and verify `whoami` and `list_courses` return both tenants.
+- [ ] 7.2 (partly done 2026-10-15: `get_content_topic` on a known PDF returned `extractedText` through the new auth; the wait-past-token-lifetime renewal check and the silent-renewal duration are still open) Verify a representative read on each tenant (for example `get_content_topic` on a known PDF returns `extractedText`), then wait past the token lifetime and verify a call renews without any prompt; record how long silent renewal lasts.
 - [ ] 7.3 Verify a second colleague account connects independently, cannot see the first user's data, and that a pre-change bearer token and the STEP tools are rejected or absent.

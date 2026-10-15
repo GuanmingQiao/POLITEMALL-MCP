@@ -146,3 +146,18 @@ left untouched for the user to archive or delete.
 - The streamed view sends mouse and keyboard events as CDP input; a text box on the page
   (`Input.insertText`) covers phones and pasted codes. Tenant buttons on the page let a person open
   either D2L home if the automatic redirect lands somewhere unhelpful.
+
+## Live findings (2026-10-15, deployed build)
+
+- **The token mint works on both tenants.** After one streamed sign-in, `whoami` and `list_courses` returned
+  data for POLITEMall and NYP using the minted Bearer token (15 courses across both), and
+  `get_content_topic` on a PDF returned its `extractedText`. The assumption the skipped gate would have
+  tested (that `/d2l/lp/auth/oauth2/token` accepts a session cookie plus XSRF token) held.
+- **Microsoft does not block the AWS host.** The sign-in page loads and accepts input from the EC2 IP.
+- **Two sign-in surprises, both fixed:** `lms.polite.edu.sg` first shows a POLITEMall *school chooser*
+  (the person clicks their school, e.g. NYP) before reaching Microsoft; and an account that has a passkey /
+  security key defaults to it, which a server-side browser cannot answer. The streamed browser now reports
+  no WebAuthn support so Microsoft offers a completable method. Sign-in links also needed a longer life than
+  the sign-in itself (15 minutes to open, then 5 minutes), because they are read from a chat message.
+- **Still unknown:** the D2L token's lifetime and whether renewal after it expires needs no browser; how long
+  the saved Microsoft state allows silent re-login; how often MFA is asked again.
