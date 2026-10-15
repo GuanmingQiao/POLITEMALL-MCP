@@ -140,7 +140,7 @@ test("links: a link page opens while open, and is refused once used up or unknow
 });
 
 test("links: an expired link is refused", async () => {
-  const s = registry.createSignin({}, Date.now() - config.signinTimeoutMs - 1000);
+  const s = registry.createSignin({}, Date.now() - config.signinLinkTtlMs - 1000);
   assert.equal(registry.getOpenSignin(s.id), undefined);
   assert.equal((await fetch(`http://127.0.0.1:${appPort}/signin/${s.id}`)).status, 410);
 });

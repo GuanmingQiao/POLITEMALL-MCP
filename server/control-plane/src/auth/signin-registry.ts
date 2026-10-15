@@ -39,7 +39,7 @@ export function createSignin(opts: { userId?: string; onSuccess?: PendingSignin[
     userId: opts.userId,
     onSuccess: opts.onSuccess,
     createdAt: now,
-    expiresAt: now + config.signinTimeoutMs,
+    expiresAt: now + config.signinLinkTtlMs,
     state: "open",
   };
   pending.set(signin.id, signin);

@@ -40,4 +40,7 @@ export const config = {
   // Streamed sign-in browsers: how many at once, and how long one may stay open.
   signinMaxConcurrent: Number(process.env.SIGNIN_MAX_CONCURRENT ?? 1),
   signinTimeoutMs: Number(process.env.SIGNIN_TIMEOUT_MS ?? 5 * 60 * 1000),
+  // How long a sign-in link can wait to be opened (it is read from a chat message, so it needs
+  // longer than the sign-in itself). Once opened it is single-use.
+  signinLinkTtlMs: Number(process.env.SIGNIN_LINK_TTL_MS ?? 15 * 60 * 1000),
 };
