@@ -59,6 +59,24 @@ export async function launchBrowser(storageState?: string): Promise<LaunchedBrow
       locale: "en-SG",
       timezoneId: "Asia/Singapore",
     });
+    // This browser has no authenticator, so a passkey / security-key prompt can never be answered
+    // and Microsoft would wait on it forever. Present the browser as not supporting WebAuthn so
+    // Microsoft offers a method the person can complete here (password, Authenticator approval or
+    // code) instead of defaulting to a passkey.
+    await context.addInitScript(() => {
+      const g = globalThis as unknown as { PublicKeyCredential?: unknown; navigator?: { credentials?: { get?: unknown; create?: unknown } } };
+      try {
+        delete g.PublicKeyCredential;
+      } catch {
+        // already absent
+      }
+      const creds = g.navigator?.credentials;
+      if (creds) {
+        const refuse = () => Promise.reject(new DOMException("No authenticator is available in this browser.", "NotAllowedError"));
+        creds.get = refuse;
+        creds.create = refuse;
+      }
+    });
     const page = await context.newPage();
     let closed = false;
     return {

@@ -33,7 +33,7 @@ button,input{font:inherit;padding:8px 12px;border:1px solid var(--line);backgrou
 button{cursor:pointer}button:hover{border-color:var(--accent)}input{flex:1;min-width:180px}
 </style></head><body><main>
 <h1>Sign in to POLITEMall</h1>
-<p>You are typing into a secure browser running on the server. Your password and codes go only to Microsoft's sign-in page and are never stored or logged. This page closes itself when you are signed in.</p>
+<p>You are typing into a secure browser running on the server. Your password and codes go only to Microsoft's sign-in page and are never stored or logged. If Microsoft offers a passkey or security key, choose another way to sign in (password or the Authenticator app). This page closes itself when you are signed in.</p>
 <p id="status" role="status">Connecting…</p>
 <div class="frame"><canvas id="screen" width="${VIEWPORT.width}" height="${VIEWPORT.height}" tabindex="0"></canvas></div>
 <div class="row">

@@ -287,3 +287,22 @@ test("silent re-login: saved Microsoft state revives a session with no input; no
   assert.equal(await browser.silentRelogin(user, "politemall"), null);
   assert.equal(browser.activeBrowserCount(), 0);
 });
+
+test("the streamed browser reports no passkey support, so Microsoft offers a method that can be completed", { skip: !HAVE_BROWSER && "no Chromium installed", timeout: 60_000 }, async () => {
+  const b = await browser.launchBrowser();
+  try {
+    await b.page.goto(`http://127.0.0.1:${stubPort}/login`);
+    const result = await b.page.evaluate(async () => {
+      let rejected = "no-rejection";
+      try {
+        await (navigator.credentials as any).get({ publicKey: { challenge: new Uint8Array(8) } });
+      } catch (e) {
+        rejected = (e as Error).name;
+      }
+      return { pk: typeof (window as any).PublicKeyCredential, rejected };
+    });
+    assert.deepEqual(result, { pk: "undefined", rejected: "NotAllowedError" });
+  } finally {
+    await b.close();
+  }
+});
