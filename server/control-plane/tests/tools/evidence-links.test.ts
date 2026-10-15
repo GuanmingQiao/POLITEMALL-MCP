@@ -1,5 +1,5 @@
-// Evidence links through the real MCP server and client: only D2L's and STEP's HTTP answers are
-// mocked. Shapes follow real NYP / STEP responses.
+// Evidence links through the real MCP server and client: only D2L's HTTP answers are
+// mocked. Shapes follow real NYP responses.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { connect, mockD2l, json, bare, enrollment } from "../helpers/mcp-harness.js";
@@ -363,89 +363,5 @@ test("generic passthrough: shape unchanged, only the retrieval statement is adde
   const listed = await c.call("list_d2l_operations", { category: "grades" });
   assert.equal(listed.blocks.length, 1, "a static catalog read nothing from a school");
   assert.equal(JSON.parse(listed.text).provenance, undefined);
-  await c.close();
-});
-// ---- STEP ----
-
-const STEP_COURSE = "88a15e0b-1657-45ef-810e-c9e680aabbcc";
-const STEP_ITEM = "2e493178-34a1-493e-8a18-159b0e112233";
-const env = (data: unknown) => json({ data, code: 200, status: 0, message: null, errorCode: 0 });
-
-test("STEP: enrolled and catalogue links, built from the right ids", async (t) => {
-  mockD2l(t, (url) => {
-    if (url.endsWith("/mycourse/paging"))
-      return env({ items: [{ courseId: STEP_COURSE, courseName: "GenAI", courseCode: "NYP-1", courseCategory: "c", courseType: "t", institute: 4, intakeEnrolmentStatus: 1, startTime: "2026-10-06T01:00:00+00:00", endTime: null }], pageCount: 1, totalItemsCount: 1 });
-    if (url.endsWith("/coursecatalogue/paging"))
-      return env({ items: [{ id: STEP_ITEM, courseId: STEP_COURSE, courseName: "Biologics", courseCode: "NYP-2", courseCategory: "c", courseStart: "2027-05-02T16:00:00+00:00", courseEnd: null, institute: 4 }], pageCount: 1, totalItemsCount: 1 });
-  });
-  const c = await connect(["step"]);
-  const mine = await c.call("list_step_courses");
-  const list = JSON.parse(mine.text);
-  assert.ok(Array.isArray(list));
-  assert.equal(list[0].sourceUrl, `https://stms.polite.edu.sg/student/mycourse/details/${STEP_COURSE}/4/coursedetails`);
-  assert.equal(list[0].startTimeSgt, "2026-10-06T09:00:00+08:00");
-  assert.equal("institute" in list[0], false, "no output field was added for the institute");
-  assert.match(mine.blocks[1].text as string, /Source: STEP — retrieved/);
-
-  const cat = JSON.parse((await c.call("search_step_courses", { query: "bio" })).text);
-  assert.equal(cat[0].sourceUrl, `https://stms.polite.edu.sg/student/ihlcourse/detail/${STEP_ITEM}`, "built from the catalogue id");
-  assert.ok(!cat[0].sourceUrl.includes(STEP_COURSE), "never from courseId");
-  assert.equal("id" in cat[0], false, "the catalogue id is not an output field");
-  await c.close();
-});
-
-test("STEP: a catalogue entry with no usable id has no link rather than a blank page", async (t) => {
-  mockD2l(t, (url) =>
-    url.endsWith("/coursecatalogue/paging")
-      ? env({ items: [{ courseId: STEP_COURSE, courseName: "No id", courseCode: "X", courseCategory: "c", courseStart: null, courseEnd: null }], pageCount: 1, totalItemsCount: 1 })
-      : undefined
-  );
-  const c = await connect(["step"]);
-  const cat = JSON.parse((await c.call("search_step_courses")).text);
-  assert.equal("sourceUrl" in cat[0], false);
-  await c.close();
-});
-
-test("STEP: timetable links the course page, with the calendar as the page; detail and announcements", async (t) => {
-  const detail = { myCourseSimpleDto: { courseId: STEP_COURSE, courseName: "GenAI", institute: 4, startTime: "2026-10-06T01:00:00+00:00", endTime: null }, myModuleDetailsDtos: [{ id: "m1" }] };
-  mockD2l(t, (url) => {
-    if (url.endsWith(`/mycourse/mycourse/${STEP_COURSE}`)) return env(detail);
-    if (url.endsWith("/sessions/paging"))
-      return env({ items: [{ sessionNumber: 1, sessionName: "S1", startTime: "2026-10-06T01:00:00+00:00", endTime: "2026-10-06T05:00:00+00:00" }], pageCount: 1, totalItemsCount: 1 });
-    if (url.endsWith("/announcements"))
-      return env({ items: [{ announcementTitle: "Anti-Scam Message", content: "<p>Call 1799 or see https://www.scamshield.gov.sg</p>", publishDate: "2025-06-26T16:01:00.069641+00:00", created: "0001-01-01T00:00:00+00:00" }], pageCount: 1, totalItemsCount: 1 });
-  });
-  const c = await connect(["step"]);
-  const tt = await c.call("get_step_timetable", { courseId: STEP_COURSE });
-  const sessions = JSON.parse(tt.text);
-  assert.equal(sessions[0].startTimeSgt, "2026-10-06T09:00:00+08:00");
-  assert.equal(sessions[0].sourceUrl, `https://stms.polite.edu.sg/student/mycourse/details/${STEP_COURSE}/4/coursedetails`);
-  assert.ok((tt.blocks[1].text as string).includes("https://stms.polite.edu.sg/student/calendar"));
-
-  const d = JSON.parse((await c.call("get_step_course_detail", { courseId: STEP_COURSE })).text);
-  assert.equal(d.sourceUrl, `https://stms.polite.edu.sg/student/mycourse/details/${STEP_COURSE}/4/coursedetails`);
-  assert.equal(d.provenance.source, "STEP");
-  assert.equal(d.myCourseSimpleDto.startTimeSgt, "2026-10-06T09:00:00+08:00");
-
-  const a = await c.call("get_step_announcements");
-  const anns = JSON.parse(a.text);
-  const footer = a.blocks[1].text as string;
-  assert.ok(footer.includes("Page: https://stms.polite.edu.sg/student/"), "the home page, where this feed is shown");
-  assert.ok(!footer.includes("/announcements"), "not the Announcements page, which lists a different feed");
-  assert.match(footer, /not evidence/, "a URL in the banner text is flagged");
-  assert.equal(anns[0].publishDateSgt, "2025-06-27T00:01:00+08:00");
-  assert.equal("createdSgt" in anns[0], false);
-  await c.close();
-});
-
-test("whoami: STEP profile page as the page; Brightspace identity has none", async (t) => {
-  mockD2l(t, (url) => {
-    if (url.endsWith("/users/whoami")) return json({ Identifier: "1", FirstName: "A", LastName: "B", UniqueName: "u" });
-    if (url.endsWith("/profile/me")) return env({ name: "A B" });
-  });
-  const c = await connect(["nyp", "step"]);
-  const r = JSON.parse((await c.call("whoami")).text);
-  assert.deepEqual(r.pageUrls, { STEP: "https://stms.polite.edu.sg/student/profile" });
-  assert.deepEqual(r.provenance.sources.sort(), ["NYP Brightspace", "STEP"]);
   await c.close();
 });

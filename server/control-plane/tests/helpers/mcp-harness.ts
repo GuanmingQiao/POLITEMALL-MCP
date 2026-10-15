@@ -1,6 +1,6 @@
 // Shared harness for tests that drive the real MCP server through a real MCP client, with the real
-// (temp-file) token store and encrypted cookie storage. Only D2L's HTTP responses are mocked.
-// Import this before any src module: it points the token store at a temp file first.
+// (temp-file) session vault and encrypted storage. Only D2L's HTTP responses are mocked.
+// Import this before any src module: it points the session vault at a temp file first.
 import { before } from "node:test";
 import type { TestContext } from "node:test";
 import { tmpdir } from "node:os";
@@ -10,10 +10,11 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 process.env.STORE_FILE = join(tmpdir(), `mcp-test-${randomBytes(4).toString("hex")}.json`);
+process.env.SESSION_FILE = join(tmpdir(), `mcp-sessions-${randomBytes(4).toString("hex")}.json`);
 const { setMasterKey } = await import("../../src/auth/crypto.js");
-const { issueToken, saveCookieHeader } = await import("../../src/auth/token-store.js");
+const { createUser, saveSchoolSession } = await import("../../src/auth/session-vault.js");
 const { buildMcpServer } = await import("../../src/server.js");
-const { createTokenContext } = await import("../../src/auth/session-context.js");
+const { createUserContext } = await import("../../src/auth/session-context.js");
 
 before(() => setMasterKey(randomBytes(32).toString("base64")));
 
@@ -40,10 +41,11 @@ export function mockD2l(t: TestContext, handler: Handler): string[] {
   return seen;
 }
 
-export async function connect(schools: ("nyp" | "politemall" | "step")[]) {
-  const token = await issueToken();
-  for (const s of schools) await saveCookieHeader(token, s, "d2lSessionVal=x");
-  const server = buildMcpServer(createTokenContext(token));
+export async function connect(schools: ("nyp" | "politemall")[]) {
+  const userId = await createUser();
+  // A signed-in person with a Bearer token that is comfortably unexpired, so no renewal is needed.
+  for (const s of schools) await saveSchoolSession(userId, s, { cookieHeader: "d2lSessionVal=x", xsrfToken: "x", accessToken: "test-token", accessTokenExpiresAt: Date.now() + 3_600_000 });
+  const server = buildMcpServer(createUserContext(userId));
   const [ct, st] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test", version: "0" });
   await Promise.all([client.connect(ct), server.connect(st)]);

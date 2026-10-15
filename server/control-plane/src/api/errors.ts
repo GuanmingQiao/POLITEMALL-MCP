@@ -1,5 +1,10 @@
 export class SessionExpiredError extends Error {}
 
+// A new D2L access token could not be obtained for a reason that is not the user's session
+// ending (D2L or the network is having a moment). Telling the user to sign in again would be
+// wrong; trying again shortly is right.
+export class TokenRenewalError extends Error {}
+
 // Any non-2xx answer from D2L that isn't a dead session. Carries the HTTP status and D2L's own
 // problem detail so callers can explain *what* went wrong instead of guessing from the class
 // alone — a bare 404 and a 400 need very different advice.

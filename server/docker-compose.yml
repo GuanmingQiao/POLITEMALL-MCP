@@ -17,12 +17,19 @@ services:
   control-plane:
     build: ./control-plane
     restart: unless-stopped
+    # Chromium (the streamed sign-in) is the memory-hungry part: cap the whole container so a
+    # runaway browser cannot take the host down, and give Chromium the shared memory it needs.
+    mem_limit: 1400m
+    shm_size: 512m
     environment:
       - PORT=3000
       - AWS_REGION=ap-southeast-1
       - MASTER_KEY_SECRET_ID=politemall-mcp/master-key
       - PUBLIC_ORIGIN=https://${PUBLIC_HOST}
       - STORE_FILE=/data/tokens.json
+      - SESSION_FILE=/data/sessions.json
+      - OAUTH_FILE=/data/oauth.json
+      - SIGNIN_MAX_CONCURRENT=1
       - RATE_LIMIT_PER_MINUTE=30
     volumes:
       - ./data:/data

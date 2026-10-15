@@ -12,9 +12,11 @@ finish the deploy manually:
    `<ip-with-dashes>.sslip.io` to the IP itself and works fine with Let's Encrypt.
 2. `cd /opt/politemall-mcp/server && docker compose up -d --build`
 
-There's no user list to seed — `server/data/tokens.json` is created automatically
-the first time someone signs up via `/connect`, and stays gitignored (it holds
-encrypted session cookies).
+There's no user list to seed. The server creates `server/data/sessions.json` (each person's encrypted
+D2L sessions, access tokens and Microsoft sign-in state) and `server/data/oauth.json` (registered MCP
+clients and hashed MCP tokens) the first time someone signs in, and both stay gitignored. The
+container needs about 1.4 GB for Chromium during a sign-in (`mem_limit`/`shm_size` in
+`docker-compose.yml`); the default is one sign-in at a time (`SIGNIN_MAX_CONCURRENT`).
 
 All of this was done interactively via `aws ssm send-command` (no SSH — the security
 group has no port 22; management is via SSM Session Manager / Run Command only).
@@ -43,29 +45,29 @@ container restart only, not a rebuild:
 |---|---|---|
 | `SOURCE_LINKS` | `on` | `off` removes every link, provenance block, `...Sgt` field, footer block, citation instruction and tool-description note, returning the exact previous result shapes. Anything other than `on`/`off` (also `1`/`0`, `true`/`false`) means the default. |
 | `SOURCE_RESOURCE_LINKS` | `off` | `on` also appends one MCP `resource_link` content block per distinct page (addressed to the user, at most 25 per result). Ignored while `SOURCE_LINKS=off`. |
-## Revoking a token
+## Signing a person out
 
-There's no admin-side revocation UI — tokens are self-issued and self-service by
-design (see the [root README](../README.md)). To kill one, delete its entry from
-`server/data/tokens.json` on the instance (keyed by a SHA-256 hash of the token, so
-you can't reverse-lookup which entry belongs to whom), or just let it expire
-(90 days from issuance). Whoever holds that token reconnects by generating a new one.
+Self-service: a person calls `POST /signout` with their MCP access token (see the
+[root README](../README.md)), which deletes everything held for them and revokes their tokens.
+As an operator you can delete their entry from `server/data/sessions.json` (keyed by a random id,
+not by anything identifying) — their MCP tokens then stop working at once. Microsoft sign-in state is
+dropped automatically 30 days after its last successful use (`MS_STATE_RETENTION_DAYS`).
 
-## Why there's no automated login
+## How sign-in works (and what to check if it breaks)
 
-POLITEMall's SSO only works from inside the polytechnic's corporate network/VPN, so
-a server sitting in AWS can never complete it — no proxy or embedded-browser trick
-gets around a network-level restriction enforced by the identity provider itself.
-An earlier version of this server tried a server-side headless-Chromium-plus-noVNC
-flow; it's been removed in favor of having each person paste their own
-already-authenticated session cookie (copied from their own browser's DevTools,
-or via the [cookie sync extension](../extension/README.md)) through the
-`/connect` page — see the [root README](../README.md).
+Each sign-in runs a headless Chromium inside the control-plane container (installed from Debian in
+the Dockerfile, `CHROMIUM_PATH=/usr/bin/chromium`) and streams it to the person's browser at a one-time
+`/signin/<id>` link over a WebSocket. When the person reaches D2L's home, the server captures the D2L
+session cookies and XSRF token and exchanges them at the tenant's `/d2l/lp/auth/oauth2/token` for a
+Bearer token; renewal repeats that exchange, and only a lapsed D2L session relaunches Chromium to replay
+the saved Microsoft state. If sign-in fails on the host, check `docker compose logs control-plane` for
+`signin_failed`, that the container is not at its memory cap, and that Microsoft is not blocking the
+host's IP. The sign-in endpoints must be reachable over HTTPS (Caddy proxies WebSockets by default).
 
 ## Known gotchas already fixed in the code
 
 - Caddyfile env substitution is `{$VAR}`, not `{env.VAR}` (the latter is a per-request
   runtime placeholder, not a config-time substitution).
 - Tokens are never accepted via URL query strings anywhere (only `Authorization:
-  Bearer` headers) — query strings end up in proxy/access logs, browser history, and
+  Bearer` headers; the sign-in link's id is not a token and grants only one browser view) — query strings end up in proxy/access logs, browser history, and
   `Referer` headers.

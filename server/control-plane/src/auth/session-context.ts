@@ -1,14 +1,17 @@
 import type { ToolContext } from "../types/tool-context.js";
-import { config } from "../utils/config.js";
-import { connectedSchools, getCookieHeader } from "./token-store.js";
+import type { D2LSchool } from "../types/schools.js";
+import { connectedSchools } from "./session-vault.js";
+import { getD2lAuth, invalidateD2lAuth } from "./d2l-session.js";
+import { createSignin, signinUrl } from "./signin-registry.js";
 
-// The hosted/local HTTP server's ToolContext: sessions come from the encrypted token store, keyed
-// by the caller's bearer token. This is the only place tools' notion of "the caller" touches
-// storage.
-export function createTokenContext(token: string): ToolContext {
+// The hosted server's ToolContext: one per request, for the signed-in person the request's MCP
+// access token belongs to. This is the only place tools' notion of "the caller" touches storage.
+export function createUserContext(userId: string): ToolContext {
   return {
-    connectedSchools: () => connectedSchools(token),
-    getCookieHeader: (school) => getCookieHeader(token, school),
-    connectUrl: () => `${config.publicOrigin}/connect`,
+    connectedSchools: () => connectedSchools(userId),
+    getD2lAuth: (school) => getD2lAuth(userId, school as D2LSchool),
+    invalidateD2lAuth: (school) => invalidateD2lAuth(userId, school as D2LSchool),
+    // A fresh one-time link that signs this same person in again.
+    connectUrl: () => signinUrl(createSignin({ userId })),
   };
 }

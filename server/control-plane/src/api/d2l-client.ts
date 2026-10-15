@@ -13,6 +13,13 @@ export const SCHOOL_HOSTS: Record<D2LSchool, string> = {
 export const VERSION_PLACEHOLDER = "{version}";
 const VERSIONED_PREFIX = /^\/d2l\/api\/(le|lp)\/\{version\}/;
 
+// The credential every call carries is an opaque string: "Bearer <token>" (the normal case, from the
+// session vault) is sent as an Authorization header; anything else is treated as a raw Cookie
+// header, which keeps a single code path for tests and any cookie-only route.
+export function authHeaders(credential: string): Record<string, string> {
+  return /^Bearer /i.test(credential) ? { Authorization: credential } : { Cookie: credential };
+}
+
 export function versionedPath(product: D2lProduct, rest: string): string {
   return `/d2l/api/${product}/${VERSION_PLACEHOLDER}${rest}`;
 }
@@ -71,7 +78,7 @@ async function failFor(res: Response, resolvedPath: string): Promise<never> {
 export async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: string): Promise<T> {
   const resolvedPath = await withVersion(school, path);
   const res = await fetch(`https://${SCHOOL_HOSTS[school]}${resolvedPath}`, {
-    headers: { Cookie: cookieHeader, Accept: "application/json" },
+    headers: { ...authHeaders(cookieHeader), Accept: "application/json" },
     redirect: "manual",
   });
   if (res.status === 200) return (await res.json()) as T;
@@ -90,7 +97,7 @@ export class FileTooLargeError extends Error {
 export async function apiGetBuffer(school: D2LSchool, path: string, cookieHeader: string, maxBytes: number): Promise<Buffer> {
   const resolvedPath = await withVersion(school, path);
   const res = await fetch(`https://${SCHOOL_HOSTS[school]}${resolvedPath}`, {
-    headers: { Cookie: cookieHeader, Accept: "*/*" },
+    headers: { ...authHeaders(cookieHeader), Accept: "*/*" },
     redirect: "manual",
   });
   if (res.status !== 200) return failFor(res, resolvedPath);

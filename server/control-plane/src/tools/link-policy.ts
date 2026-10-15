@@ -55,12 +55,7 @@ export const LINK_POLICY: Record<string, LinkPolicy> = {
   call_d2l_operation: none("raw catalog passthrough; only the retrieval statement is added"),
   list_d2l_operations: none("static catalog, nothing is read from a school"),
   search_politemall_catalog: none("the public marketing site; no verified per-item page"),
-  list_step_courses: item("enrolled course page per course; my courses as the page", true, true),
-  search_step_courses: item("catalogue course page per course (keyed on the catalogue id); All courses as the page", true, true),
-  get_step_course_detail: item("enrolled course page; my courses as the page", true, true),
-  get_step_timetable: item("enrolled course page, which lists the sessions; calendar as the page", true, true),
-  get_step_announcements: page("STEP home, where the returned banner feed is shown (not the Announcements page)", true),
-  whoami: page("STEP profile page; Brightspace identity has no page"),
+  whoami: none("Brightspace identity has no page of its own"),
 };
 
 // What is appended to a tool's description so an agent knows to cite the links.

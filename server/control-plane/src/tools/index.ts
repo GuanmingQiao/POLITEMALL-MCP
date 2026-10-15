@@ -30,18 +30,13 @@ import { registerGetQuizResults } from "./get-quiz-results.js";
 import { registerGetQuizzes } from "./get-quizzes.js";
 import { registerGetRecentUpdates } from "./get-recent-updates.js";
 import { registerGetRubrics } from "./get-rubrics.js";
-import { registerGetStepAnnouncements } from "./get-step-announcements.js";
-import { registerGetStepCourseDetail } from "./get-step-course-detail.js";
-import { registerGetStepTimetable } from "./get-step-timetable.js";
 import { registerGetSurveyAttempts } from "./get-survey-attempts.js";
 import { registerGetSurveyQuestions } from "./get-survey-questions.js";
 import { registerGetSurveyResults } from "./get-survey-results.js";
 import { registerGetSurveys } from "./get-surveys.js";
 import { registerListCourses } from "./list-courses.js";
 import { registerListD2lOperations } from "./list-d2l-operations.js";
-import { registerListStepCourses } from "./list-step-courses.js";
 import { registerSearchPolitemallCatalog } from "./search-politemall-catalog.js";
-import { registerSearchStepCourses } from "./search-step-courses.js";
 import { registerWhoami } from "./whoami.js";
 
 // One file per tool. The same set is registered whether the server runs in the cloud or locally:
@@ -84,17 +79,12 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   registerGetQuizzes(server, ctx);
   registerGetRecentUpdates(server, ctx);
   registerGetRubrics(server, ctx);
-  registerGetStepAnnouncements(server, ctx);
-  registerGetStepCourseDetail(server, ctx);
-  registerGetStepTimetable(server, ctx);
   registerGetSurveyAttempts(server, ctx);
   registerGetSurveyQuestions(server, ctx);
   registerGetSurveyResults(server, ctx);
   registerGetSurveys(server, ctx);
   registerListCourses(server, ctx);
   registerListD2lOperations(server, ctx);
-  registerListStepCourses(server, ctx);
   registerSearchPolitemallCatalog(server, ctx);
-  registerSearchStepCourses(server, ctx);
   registerWhoami(server, ctx);
 }

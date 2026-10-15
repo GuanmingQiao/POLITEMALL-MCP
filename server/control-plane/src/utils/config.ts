@@ -31,5 +31,13 @@ export const config = {
   storeFile: process.env.STORE_FILE ?? (local ? "./data/tokens.json" : "/data/tokens.json"),
   publicOrigin: process.env.PUBLIC_ORIGIN ?? (local ? `http://localhost:${port}` : ""),
   rateLimitPerMinute: Number(process.env.RATE_LIMIT_PER_MINUTE ?? 30),
-  keepAliveIntervalMs: Number(process.env.KEEP_ALIVE_INTERVAL_MS ?? 5 * 60 * 1000),
+  // Per-user sign-in state (encrypted Microsoft browser state, D2L sessions and tokens) and the
+  // OAuth server's clients/tokens live next to the original token store.
+  sessionFile: process.env.SESSION_FILE ?? (local ? "./data/sessions.json" : "/data/sessions.json"),
+  oauthFile: process.env.OAUTH_FILE ?? (local ? "./data/oauth.json" : "/data/oauth.json"),
+  // How long saved Microsoft sign-in state is kept after its last successful use.
+  msStateRetentionDays: Number(process.env.MS_STATE_RETENTION_DAYS ?? 30),
+  // Streamed sign-in browsers: how many at once, and how long one may stay open.
+  signinMaxConcurrent: Number(process.env.SIGNIN_MAX_CONCURRENT ?? 1),
+  signinTimeoutMs: Number(process.env.SIGNIN_TIMEOUT_MS ?? 5 * 60 * 1000),
 };

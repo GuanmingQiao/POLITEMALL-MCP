@@ -1,10 +1,9 @@
 import type { ToolContext } from "../types/tool-context.js";
 import type { D2LSchool } from "../types/schools.js";
-import { SessionExpiredError, D2lHttpError, PermissionDeniedError, NotFoundError } from "../api/errors.js";
+import { SessionExpiredError, TokenRenewalError, D2lHttpError, PermissionDeniedError, NotFoundError } from "../api/errors.js";
 import { D2lVersionDiscoveryError } from "../api/d2l-versions.js";
 import { describeD2lFailure } from "../api/error-messages.js";
 import { getCourseAccess, parseCourseId } from "../api/courses.js";
-import { SessionExpiredError as StepSessionExpiredError } from "../api/step-client.js";
 import { link } from "../utils/deep-links.js";
 import { buildContent, unwrapLinked, type LinkOpts, type Source } from "./provenance.js";
 
@@ -16,6 +15,20 @@ export function toolResult(data: unknown, sources: Source[] = [], opts: LinkOpts
 
 export function errorResult(text: string) {
   return { isError: true, content: [{ type: "text" as const, text }] };
+}
+
+// The credential for a school, or the message to give the caller instead (not connected, session
+// ended, or D2L briefly unreachable).
+export async function authFor(ctx: ToolContext, school: D2LSchool): Promise<{ ok: true; auth: string } | { ok: false; message: string }> {
+  try {
+    const auth = await ctx.getD2lAuth(school);
+    if (!auth) return { ok: false, message: `Your ${school} session isn't connected. Sign in at ${ctx.connectUrl()}.` };
+    return { ok: true, auth };
+  } catch (err) {
+    const message = await explainD2lError(ctx, err, school, "");
+    if (message === undefined) throw err;
+    return { ok: false, message };
+  }
 }
 
 // Turns a failed D2L call into a message an agent can act on, or undefined if `err` isn't a
@@ -30,7 +43,11 @@ export async function explainD2lError(
   courseId?: string
 ): Promise<string | undefined> {
   if (err instanceof SessionExpiredError) {
-    return `Your ${school} session expired — reconnect it at ${ctx.connectUrl()}.`;
+    await ctx.invalidateD2lAuth?.(school);
+    return `Your ${school} session expired — sign in again at ${ctx.connectUrl()}.`;
+  }
+  if (err instanceof TokenRenewalError) {
+    return `${err.message} This is temporary — try again shortly.`;
   }
   if (err instanceof D2lVersionDiscoveryError) {
     return `Couldn't determine which D2L API version ${school} supports right now (${err.message}). This is temporary — try again shortly.`;
@@ -60,7 +77,7 @@ export async function runAcrossD2LSchools<T>(
 ): Promise<{ results: T[]; warnings: string[]; attempted: number; failed: number; succeeded: D2LSchool[] }> {
   const schools = ctx.connectedSchools().filter((s): s is D2LSchool => s === "politemall" || s === "nyp");
   if (schools.length === 0) {
-    return { results: [], warnings: [`No school connected yet. Connect at least one at ${ctx.connectUrl()}.`], attempted: 0, failed: 0, succeeded: [] };
+    return { results: [], warnings: [`No school connected yet. Sign in at ${ctx.connectUrl()}.`], attempted: 0, failed: 0, succeeded: [] };
   }
 
   const results: T[] = [];
@@ -69,9 +86,14 @@ export async function runAcrossD2LSchools<T>(
   let attempted = 0;
   let failed = 0;
   for (const school of schools) {
-    const cookieHeader = ctx.getCookieHeader(school);
-    if (!cookieHeader) continue;
     attempted++;
+    const credential = await authFor(ctx, school);
+    if (!credential.ok) {
+      failed++;
+      warnings.push(`${school}: ${credential.message}`);
+      continue;
+    }
+    const cookieHeader = credential.auth;
     try {
       results.push(...(await fn(school, cookieHeader)));
       succeeded.push(school);
@@ -123,10 +145,9 @@ export async function runForD2LCourse(
   fn: (school: D2LSchool, cookieHeader: string, numericId: number) => Promise<unknown>
 ) {
   const { school, numericId } = parseCourseId(courseId);
-  const cookieHeader = ctx.getCookieHeader(school);
-  if (!cookieHeader) {
-    return errorResult(`Your ${school} session isn't connected. Connect it at ${ctx.connectUrl()}.`);
-  }
+  const credential = await authFor(ctx, school);
+  if (!credential.ok) return errorResult(credential.message);
+  const cookieHeader = credential.auth;
   try {
     const { data, opts } = unwrapLinked(await fn(school, cookieHeader, numericId));
     return toolResult(data, [school], opts);
@@ -134,21 +155,5 @@ export async function runForD2LCourse(
     const message = await explainD2lError(ctx, err, school, cookieHeader, courseId);
     if (message === undefined) throw err;
     return errorResult(message);
-  }
-}
-
-export async function runStep(ctx: ToolContext, fn: (cookieHeader: string) => Promise<unknown>) {
-  const cookieHeader = ctx.getCookieHeader("step");
-  if (!cookieHeader) {
-    return errorResult(`Your STEP session isn't connected. Connect it at ${ctx.connectUrl()}.`);
-  }
-  try {
-    const { data, opts } = unwrapLinked(await fn(cookieHeader));
-    return toolResult(data, ["step"], opts);
-  } catch (err) {
-    if (err instanceof StepSessionExpiredError) {
-      return errorResult(`Your STEP session expired — reconnect it at ${ctx.connectUrl()}.`);
-    }
-    throw err;
   }
 }

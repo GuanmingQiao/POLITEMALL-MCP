@@ -10,7 +10,6 @@ test("one school: a single `source`; two schools: `sources`, one retrieval time"
   const two = buildProvenance(["nyp", "politemall", "nyp"], {}, NOW);
   assert.deepEqual(two.sources, ["NYP Brightspace", "POLITEMall Brightspace"]);
   assert.equal(two.source, undefined);
-  assert.equal(buildProvenance(["step"], {}, NOW).source, "STEP");
 });
 
 test("the untrusted flag is set only when asked", () => {
@@ -35,7 +34,6 @@ test("the footer for array results carries source, time, page and the untrusted 
     footerText(prov, { pageUrl: "https://nyplms.polite.edu.sg/d2l/home" }),
     "Source: NYP Brightspace — retrieved 2026-09-20T05:12:34Z; times with an Sgt suffix are Singapore time (+08:00). Page: https://nyplms.polite.edu.sg/d2l/home"
   );
-  assert.match(footerText(buildProvenance(["nyp", "step"], {}, NOW), {}), /^Source: NYP Brightspace \+ STEP —/);
   assert.match(footerText(prov, { untrusted: true }), /not evidence/);
   assert.doesNotMatch(footerText(prov, {}), /Page:/);
 });

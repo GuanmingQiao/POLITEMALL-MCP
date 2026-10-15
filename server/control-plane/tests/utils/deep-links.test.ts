@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { link, stepLink, sameTenantUrl, toId, VERIFIED, type LinkPattern } from "../../src/utils/deep-links.js";
+import { link, sameTenantUrl, toId, VERIFIED, type LinkPattern } from "../../src/utils/deep-links.js";
 import type { D2LSchool } from "../../src/types/schools.js";
 
 const NYP = "https://nyplms.polite.edu.sg";
@@ -50,15 +50,9 @@ test("patterns not yet verified on a school emit nothing there, and only there",
   assert.equal(link.graderQuizzes("nyp", 524042), `${NYP}/d2l/lms/quizzing/admin/quizzes_manage.d2l?ou=524042`);
 });
 
-test("the VERIFIED table: every pattern is verified for its own system(s) and for no other kind", () => {
-  const step: LinkPattern[] = ["stepMyCourses", "stepCourse", "stepCatalogueCourse", "stepHome", "stepCalendar", "stepProfile"];
+test("the VERIFIED table: every pattern is verified on NYP", () => {
   for (const [pattern, where] of Object.entries(VERIFIED) as [LinkPattern, (typeof VERIFIED)[LinkPattern]][]) {
-    if (step.includes(pattern)) {
-      assert.deepEqual(where, { nyp: false, politemall: false, step: true }, pattern);
-    } else {
-      assert.equal(where.step, false, pattern);
-      assert.equal(where.nyp, true, `${pattern} is verified on NYP`);
-    }
+    assert.equal(where.nyp, true, `${pattern} is verified on NYP`);
   }
 });
 
@@ -71,24 +65,6 @@ test("ids must be positive safe integers; anything else means no link, never a g
   assert.equal(toId("6606"), 6606, "D2L sends some org-unit ids as numeric strings");
   assert.equal(toId("6606; drop"), undefined);
   assert.equal(toId("-3"), undefined);
-});
-
-test("STEP builders", () => {
-  assert.equal(stepLink.myCourses(), "https://stms.polite.edu.sg/student/mycourse");
-  assert.equal(stepLink.home(), "https://stms.polite.edu.sg/student/");
-  assert.equal(stepLink.calendar(), "https://stms.polite.edu.sg/student/calendar");
-  assert.equal(stepLink.profile(), "https://stms.polite.edu.sg/student/profile");
-  assert.equal(stepLink.course(COURSE, 4), `https://stms.polite.edu.sg/student/mycourse/details/${COURSE}/4/coursedetails`);
-  assert.equal(stepLink.catalogueCourse(ITEM), `https://stms.polite.edu.sg/student/ihlcourse/detail/${ITEM}`);
-});
-
-test("STEP ids must be GUIDs: no path traversal, and a missing catalogue id is no link", () => {
-  for (const bad of ["../../etc/passwd", `${COURSE}/../x`, "not-a-guid", "", null, undefined, 12, `${COURSE}?x=1`]) {
-    assert.equal(stepLink.catalogueCourse(bad), undefined, String(bad));
-    assert.equal(stepLink.course(bad, 4), undefined, String(bad));
-  }
-  assert.equal(stepLink.course(COURSE, 0), undefined);
-  assert.equal(stepLink.course(COURSE, "4"), undefined);
 });
 
 test("sameTenantUrl accepts D2L's own calendar event URL and nothing off-tenant", () => {
@@ -124,11 +100,10 @@ test("no builder output carries anything that looks like a credential or persona
       link.quiz(s, 1, 2), link.quizList(s, 1), link.survey(s, 1, 2), link.surveyList(s, 1), link.myGrades(s, 1), link.courseCalendar(s, 1),
       link.groups(s, 1), link.schoolHome(s), link.graderGradebook(s, 1), link.graderAssignments(s, 1), link.graderQuizzes(s, 1),
     ]),
-    stepLink.myCourses(), stepLink.home(), stepLink.calendar(), stepLink.profile(), stepLink.course(COURSE, 4), stepLink.catalogueCourse(ITEM),
   ].filter((u): u is string => typeof u === "string");
   assert.ok(all.length > 30);
   for (const u of all) {
-    assert.match(u, /^https:\/\/(nyplms|lms|stms)\.polite\.edu\.sg\//);
+    assert.match(u, /^https:\/\/(nyplms|lms)\.polite\.edu\.sg\//);
     assert.doesNotMatch(u, /token|cookie|session|bearer|@|password/i, u);
   }
 });

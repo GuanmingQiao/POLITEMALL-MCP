@@ -7,7 +7,7 @@ test("the three pairs verified against the real pages", () => {
   assert.equal(toSgt("2026-09-09T05:23:00.000Z"), "2026-09-09T13:23:00+08:00");
   // a due date
   assert.equal(toSgt("2026-10-01T04:00:00.000Z"), "2026-10-01T12:00:00+08:00");
-  // STEP: API 01:00+00:00, page shows 09:00
+  // API 01:00+00:00, page shows 09:00
   assert.equal(toSgt("2026-10-06T01:00:00+00:00"), "2026-10-06T09:00:00+08:00");
 });
 
@@ -20,7 +20,7 @@ test("an input already carrying an offset is the same instant, expressed in +08:
   assert.equal(toSgt("2026-10-01T12:00:00-05:00"), "2026-10-02T01:00:00+08:00");
 });
 
-test("null, garbage, a bare local time and STEP's 'unset' date give no companion", () => {
+test("null, garbage, a bare local time and an 'unset' date give no companion", () => {
   for (const bad of [null, undefined, "", "not a date", 12345, "2026-10-01", "2026-10-01T12:00:00", "0001-01-01T00:00:00+00:00", {}]) {
     assert.equal(toSgt(bad), undefined, String(bad));
   }

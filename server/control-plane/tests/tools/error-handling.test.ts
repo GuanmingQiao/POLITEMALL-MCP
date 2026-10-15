@@ -109,11 +109,11 @@ test("cross-course tools are an error only when every connected school failed", 
   await c.close();
 });
 
-test("an expired session still tells the user to reconnect", async (t) => {
+test("an expired session tells the user to sign in again with a fresh one-time link", async (t) => {
   mockD2l(t, () => new Response(null, { status: 302 }));
   const c = await connect(["nyp"]);
   const r = await c.call("get_grades", { courseId: "nyp:524042" });
   assert.equal(r.isError, true);
-  assert.match(r.text, /session expired — reconnect/);
+  assert.match(r.text, /session expired — sign in again at .*\/signin\/[A-Za-z0-9_-]{16,}/);
   await c.close();
 });

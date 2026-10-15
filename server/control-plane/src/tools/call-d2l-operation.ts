@@ -7,7 +7,7 @@ import { callD2lOperation } from "../api/d2l-routes.js";
 import { parseCourseId } from "../api/courses.js";
 import { InvalidRouteParamsError, UnsupportedOperationError } from "../api/errors.js";
 import { READ_ONLY } from "./schemas.js";
-import { toolResult, errorResult, explainD2lError } from "./helpers.js";
+import { toolResult, errorResult, explainD2lError, authFor } from "./helpers.js";
 
 export function registerCallD2lOperation(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
@@ -45,10 +45,9 @@ export function registerCallD2lOperation(server: McpServer, ctx: ToolContext): v
         targetSchool = school;
       }
 
-      const cookieHeader = ctx.getCookieHeader(targetSchool);
-      if (!cookieHeader) {
-        return errorResult(`Your ${targetSchool} session isn't connected. Connect it at ${ctx.connectUrl()}.`);
-      }
+      const credential = await authFor(ctx, targetSchool);
+      if (!credential.ok) return errorResult(credential.message);
+      const cookieHeader = credential.auth;
 
       try {
         const result = await callD2lOperation(targetSchool, cookieHeader, operation, pathParams ?? {}, queryParams ?? {}, orgUnitId);

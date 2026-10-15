@@ -8,7 +8,7 @@ test("every registered tool has a link-policy decision, and every decision names
   const c = await connect(["nyp"]);
   const registered = (await c.tools()).map((x) => x.name).sort();
   assert.deepEqual(registered, Object.keys(LINK_POLICY).sort(), "adding a tool without deciding its links fails here");
-  assert.equal(registered.length, 41);
+  assert.equal(registered.length, 36);
   await c.close();
 });
 

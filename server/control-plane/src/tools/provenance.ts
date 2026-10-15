@@ -5,12 +5,11 @@
 import { resourceLinksEnabled, sourceLinksEnabled } from "../utils/config.js";
 import { toSgt } from "../utils/local-time.js";
 
-export type Source = "nyp" | "politemall" | "step";
+export type Source = "nyp" | "politemall";
 
 export const SOURCE_LABEL: Record<Source, string> = {
   nyp: "NYP Brightspace",
   politemall: "POLITEMall Brightspace",
-  step: "STEP",
 };
 export const TIMEZONE = "Asia/Singapore (+08:00)";
 
@@ -116,7 +115,7 @@ function collectPages(data: unknown, opts: LinkOpts): { url: string; name?: stri
 
 function systemLabel(url: string): string {
   const host = new URL(url).hostname;
-  return host.startsWith("nyplms") ? SOURCE_LABEL.nyp : host.startsWith("stms") ? SOURCE_LABEL.step : SOURCE_LABEL.politemall;
+  return host.startsWith("nyplms") ? SOURCE_LABEL.nyp : SOURCE_LABEL.politemall;
 }
 
 type Block =
@@ -169,5 +168,5 @@ export const CITATION_INSTRUCTIONS = [
   "- If an item has no `sourceUrl`, say plainly that no page is available for it instead of linking something nearby.",
   "- When you give a date, quote the `...Sgt` value (Singapore time, what the site shows) rather than converting the UTC value yourself.",
   "- Results say when they were read (`provenance.retrievedAt`, or the second text block for list results). Mention it when the answer could go stale.",
-  "- The user must be signed in to the school (or STEP) in their browser to open a link.",
+  "- The user must be signed in to the school in their browser to open a link.",
 ].join("\n");

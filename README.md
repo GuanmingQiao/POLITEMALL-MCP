@@ -1,28 +1,23 @@
 # politemall-mcp
 
-MCP server for the Singapore polytechnic/ITE learning systems: **POLITEMall** and
-**NYP** (both D2L Brightspace) and **STEP** (SkillsFuture/short-course enrollment
-and attendance). Talks directly to each system's own REST API, authenticated with
-a browser session cookie — no institutional API key or app registration involved.
+MCP server for the Singapore polytechnic/ITE learning systems on **POLITEMall**: the two
+D2L Brightspace tenants **POLITEMall** and **NYP**. Talks directly to each tenant's own REST API as
+the signed-in person — no institutional API key or app registration involved.
 
-**Live server:** `https://13-212-182-50.sslip.io` — this is the primary way to use
-this project: one shared server, each person connected with their own token. The exact
-same server (same tools, same code) can also [run on your own machine](#running-it-locally).
+**Live server:** `https://13-212-182-50.sslip.io` — one shared server; each person signs in once with
+their own Microsoft account. The exact same server (same tools, same code) can also
+[run on your own machine](#running-it-locally).
 
-## The three systems
+## The two tenants
 
-Each is a separate login with its own session cookie, even though they share SSO —
-connect whichever you need, any combination:
+One sign-in covers both:
 
-- **POLITEMall** (`lms.polite.edu.sg`) — shared D2L Brightspace instance across
-  polytechnics.
+- **POLITEMall** (`lms.polite.edu.sg`) — shared D2L Brightspace instance across polytechnics.
 - **NYP** (`nyplms.polite.edu.sg`) — NYP's own dedicated D2L Brightspace instance.
-- **STEP** (`stms.polite.edu.sg`) — a separate system entirely (not Brightspace):
-  SkillsFuture/short-course enrollment, attendance, and certification records.
 
 ## Tools
 
-**POLITEMall/NYP (D2L)** — `courseId` is an opaque string like `politemall:6606`
+**D2L (POLITEMall and NYP)** — `courseId` is an opaque string like `politemall:6606`
 or `nyp:12345` returned by `list_courses`; it encodes which of the two schools the
 course belongs to, so just pass it through as-is to the other tools.
 
@@ -54,7 +49,7 @@ course belongs to, so just pass it through as-is to the other tools.
 | `whoami` | Your identity on each connected school |
 
 **POLITEMall/NYP (D2L), instructor/TA only** — same `courseId`s as above, but
-these call grading-permission-gated endpoints. A student's cookie gets a clear
+these call grading-permission-gated endpoints. A student's session gets a clear
 permission error, not their own data, if they call one of these by mistake.
 
 | Tool | What it does |
@@ -75,18 +70,6 @@ need.
 |---|---|
 | `list_d2l_operations` | Search/browse the full route catalog by category or keyword, to find an operation's key and required parameters |
 | `call_d2l_operation` | Invoke any cataloged operation by key — returns D2L's raw JSON response, unshaped. Course-scoped operations take `courseId`; operations not tied to one course take `school` instead. Read-only; routes that return binary file content are rejected |
-
-**STEP** — `courseId` is a GUID string from `list_step_courses` /
-`search_step_courses`; STEP tools are separate from the D2L ones above since it's
-a different data model (training/attendance records, not course content/grades).
-
-| Tool | What it does |
-|---|---|
-| `list_step_courses` | Your enrolled SkillsFuture/short courses |
-| `search_step_courses` | Search/browse STEP's full public catalog (thousands of courses) — not just your enrollments |
-| `get_step_course_detail` | Attendance %, grade, and enrolment status for a course |
-| `get_step_timetable` | Class session timetable — dates, trainer, room, attendance status |
-| `get_step_announcements` | Portal-wide announcements |
 
 **POLITEMall public catalog** — a third, separate system again: the marketing
 site at `politemall.polite.edu.sg`, not Brightspace. No login required.
@@ -111,124 +94,83 @@ Tool results let you check what you were told. Where a result has a page on the 
 carries the link next to the data:
 
 - **`sourceUrl`** on an item (an announcement, quiz, assignment, content topic, discussion topic,
-  calendar event, STEP course, ...) opens that item. **`pageUrl`** on a result opens the page that
-  shows the whole result (the classlist, "my grades", a course's quiz list, STEP's home page). An
+  calendar event, ...) opens that item. **`pageUrl`** on a result opens the page that
+  shows the whole result (the classlist, "my grades", a course's quiz list). An
   item with no verified page has no link at all, not a guessed one.
 - **`provenance`** (or, for results that are plain lists, a second text block) says which system the
-  data came from (NYP Brightspace, POLITEMall Brightspace, STEP) and when it was read.
+  data came from (NYP Brightspace, POLITEMall Brightspace) and when it was read.
 - **`...Sgt`** fields (`dueDateSgt`, `dateSgt`, ...) give the same instant as the original UTC value in
   Singapore time (`+08:00`), which is what the sites display. The original value is never changed.
 - Links inside announcement, discussion or description text were written by other people; results
   flag them (`untrustedLinksInText`) and they are never used as evidence.
 
 The server also sends citation rules to the connecting agent (cite the `sourceUrl`, never build or
-edit a link, say when there is none). A link opens only for someone signed in to that school (or
-STEP) in their browser, and it can show only what that person is already allowed to see. Every
+edit a link, say when there is none). A link opens only for someone signed in to that school in
+their browser, and it can show only what that person is already allowed to see. Every
 pattern is opened in a real session before it is emitted, and `test-oracle/verify-links.js`
-re-checks them (`test-oracle/verify-step-links.md` for STEP).
+re-checks them.
 
 Two environment switches (see [deploy/README.md](deploy/README.md)): `SOURCE_LINKS=off` removes all
 of the above and returns the previous result shapes; `SOURCE_RESOURCE_LINKS=on` additionally
 returns MCP `resource_link` blocks for clients that display them.
 ## Connecting
 
-There's no per-person account system — a token is just a random key that maps to
-a set of encrypted session cookies, generated by whoever wants to use the server.
-Nothing ties a token to a name, email, or identity.
+You connect with only the server URL. The first time, your MCP client opens a sign-in page in
+your browser; you type your own Microsoft account and approve MFA there, and you're connected.
+Nothing to install, no cookies or tokens to copy.
 
-1. **[Install the cookie sync browser extension](extension/README.md)** — this is
-   the intended way to connect and reconnect; use it rather than the manual
-   DevTools flow on `/connect` unless your machine blocks extension installs.
-2. Open the extension popup and click **Generate a new token** (same as
-   `/connect`'s first step, just done from the extension). It's shown once —
-   save it into your MCP client's config immediately. Lost it? Generate a new
-   one; there's no recovery.
-3. Log in normally in your own browser — on the polytechnic corporate
-   network/VPN, since that's the only place SSO works — at whichever of
-   `lms.polite.edu.sg`, `nyplms.polite.edu.sg`, `stms.polite.edu.sg` you want,
-   then click the matching button in the extension popup (or **Sync all
-   connected schools**) to send that cookie to the server.
+**How the sign-in works.** The page shows a live view of a browser running on the server, at the
+real Microsoft sign-in page. What you type goes only to Microsoft's page: it isn't stored or
+logged. When you reach POLITEMall (and NYP, which signs in automatically from the same Microsoft
+session), the server keeps your D2L session, exchanges it for an access token, and renews that
+token itself. If the session ever lapses it first tries to renew it silently from your saved
+Microsoft sign-in; only if Microsoft asks for something again will a tool reply with a fresh
+one-time sign-in link.
 
-If extension installs are blocked on your machine, fall back to
-**[/connect](https://13-212-182-50.sslip.io/connect)**, which does the same
-thing via DevTools copy-paste instead.
+**What the server keeps about you** (all encrypted at rest): your D2L session for each tenant,
+your current access token, and your Microsoft sign-in state, which is deleted after
+30 days without use. By connecting you trust this server with that state, so only connect to a
+server you trust. To delete everything and revoke every token your MCP clients hold:
 
-**Cookie expired later?** Reconnect that one school (via the extension, or
-`/connect` with your existing token) — your MCP client's config never changes,
-since it only holds the token, not the cookies. The server also pings every
-connected session every 5 minutes to keep it alive via sliding-expiry, so this
-should come up less often than you'd expect. Tokens themselves expire after 90
-days regardless of use; that does need a fresh token afterward.
+```bash
+curl -X POST https://13-212-182-50.sslip.io/signout -H "Authorization: Bearer <your MCP access token>"
+```
+
+Sign-ins are limited to a few at a time; if the server is busy, try again in a minute.
 
 ## Connecting your MCP client
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http politemall https://13-212-182-50.sslip.io/mcp \
-  --header "Authorization: Bearer YOUR_TOKEN"
+claude mcp add --transport http politemall https://13-212-182-50.sslip.io/mcp
 ```
 
-Add `--scope user` to make it available in every project, not just the current one.
+Add `--scope user` to make it available in every project, not just the current one. Then run
+`/mcp` in Claude Code, choose **politemall** and **Authenticate**; your browser opens the sign-in page.
 
 ### Claude Desktop
 
-Claude Desktop's built-in connector UI only supports OAuth, not a plain bearer
-token, so you bridge it via [`mcp-remote`](https://github.com/punkpeye/mcp-remote)
-in `claude_desktop_config.json` (`%APPDATA%\Claude\claude_desktop_config.json` on
-Windows):
-
-```json
-{
-  "mcpServers": {
-    "politemall": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "https://13-212-182-50.sslip.io/mcp",
-        "--header",
-        "Authorization:${AUTH_HEADER}"
-      ],
-      "env": {
-        "AUTH_HEADER": "Bearer YOUR_TOKEN"
-      }
-    }
-  }
-}
-```
-
-Requires Node.js installed (for `npx`), but no admin rights. Fully quit and reopen
-Claude Desktop after editing.
+Settings → Connectors → **Add custom connector**, name it, and enter
+`https://13-212-182-50.sslip.io/mcp`. Claude Desktop opens the sign-in page in your browser.
 
 ### Microsoft Copilot Studio
 
-Your agent → **Tools** → **Add a tool** → **New tool** → **Model Context Protocol**:
-
-- **Server URL**: `https://13-212-182-50.sslip.io/mcp`
-- **Authentication**: API key → **Type**: Header → **Header name**: `Authorization`
-
-The value isn't entered here — after saving, the tool shows as **"Not connected"**;
-click it → **New connection** → enter just your raw token (no `Bearer ` prefix
-needed — the server accepts either form) as the API key value → Create.
-
-If Copilot Studio ever shows a stale "connection no longer valid" error after a
-token change, delete and recreate the connection rather than editing it — this is
-a known Copilot Studio rough edge with MCP connectors, not a server-side issue.
+Your agent → **Tools** → **Add a tool** → **New tool** → **Model Context Protocol**, server URL
+`https://13-212-182-50.sslip.io/mcp`, authentication **OAuth 2.0** with dynamic discovery (the
+server publishes its OAuth metadata and supports dynamic client registration and PKCE).
 
 ## Security notes
 
-- Signup is open to anyone with the server URL, but a token alone is useless
-  without a valid session cookie behind it — there's no data to leak until you
-  connect one.
-- Never put your token in a URL, chat message, or shared doc — `/connect`, the
-  extension, and your MCP client config are the only places it should ever be
-  typed.
-- Each session cookie is encrypted at rest (AES-256-GCM) on the server and is
-  only ever used server-side to call that school's API on your behalf.
-- All `/signup`, `/sync`, and `/mcp` requests are rate-limited and logged (a
-  short one-way hash of the token, plus timestamp and IP — never the raw token
-  or cookie) for audit purposes.
+- There is no signup and no shared secret: an MCP access token is only issued after a completed
+  Microsoft sign-in, and it identifies a person, nothing more.
+- Sign-in links are unguessable, single-use and short-lived; each runs in its own isolated browser
+  that is closed as soon as the sign-in ends, fails, times out or you leave the page.
+- D2L sessions, access tokens and Microsoft sign-in state are encrypted at rest (AES-256-GCM) and
+  used only server-side to call D2L on your behalf. Typed credentials, cookies and tokens are never
+  logged; `/mcp` and `/signin` requests are rate-limited and audit-logged with a short one-way hash
+  of your id, a timestamp and IP.
+- OAuth endpoints enforce PKCE and exact redirect-URI matching; authorization codes work once.
 
 ## Architecture
 
@@ -236,17 +178,16 @@ a known Copilot Studio rough edge with MCP connectors, not a server-side issue.
 server/
   control-plane/            the MCP server (Streamable HTTP) — the only server in this repo
     src/
-      index.ts, local.ts    hosted entry point / local entry point (same server, see below)
+      index.ts, local.ts    hosted entry point / local entry point; app.ts builds the HTTP app
       server.ts             builds the MCP server for one caller
-      api/                  D2L + STEP clients: version discovery, routes, pagination, errors
-      auth/                 token store, encryption, rate limiting, keep-alive, per-caller session context
+      api/                  D2L client: version discovery, routes, pagination, errors
+      auth/                 OAuth server, streamed sign-in, session vault, token mint/renewal, encryption, rate limiting
       tools/                one file per tool (+ shared helpers and schemas)
       utils/                config, audit log, HTML→Markdown, PDF/Office text extraction, deep links
       types/                shared types, incl. ToolContext
     tests/                  mirrors src/ (api/, auth/, tools/, utils/); run with `npm test`
   docker-compose.yml, Caddyfile
 deploy/                     AWS provisioning notes/scripts for the hosted server
-extension/                  browser extension for one-click cookie sync
 ```
 
 Tools never know where a caller's sessions live: they receive a `ToolContext`
@@ -265,9 +206,8 @@ npm run local        # builds, then starts on http://localhost:3000 (no AWS need
 ```
 
 `npm run local` generates a master key into `server/control-plane/data/` on first start and
-keeps encrypted sessions there. Connect the same way as the hosted server, using the manual
-steps on `http://localhost:3000/connect` (the browser extension is set up for the hosted
-server only), then point your MCP client at `http://localhost:3000/mcp` with your token as a
-bearer token. Sessions expire periodically; reconnect the same way.
+keeps encrypted sessions there. It needs a Chromium for the streamed sign-in: set
+`CHROMIUM_PATH` to a Chrome, Edge or Chromium executable. Add `http://localhost:3000/mcp` to your MCP
+client the same way as above; the sign-in page opens on `http://localhost:3000`.
 
 Tests: `npm test` (compiles `src/` and `tests/`, then runs everything with Node's test runner).

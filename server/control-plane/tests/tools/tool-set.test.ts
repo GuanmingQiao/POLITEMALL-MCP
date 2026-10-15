@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { buildMcpServer } from "../../src/server.js";
-import { createTokenContext } from "../../src/auth/session-context.js";
+import { createUserContext } from "../../src/auth/session-context.js";
 import type { ToolContext } from "../../src/types/tool-context.js";
 
 // The server must expose the same tools however it is hosted. Tools only see a ToolContext, so
@@ -24,11 +24,12 @@ async function listToolNames(ctx: ToolContext): Promise<string[]> {
 test("hosted and non-hosted contexts expose the identical tool set", async () => {
   const inMemory: ToolContext = {
     connectedSchools: () => ["nyp"],
-    getCookieHeader: () => "d2lSessionVal=x",
-    connectUrl: () => "http://localhost:3000/connect",
+    getD2lAuth: async () => "Bearer x",
+    connectUrl: () => "http://localhost:3000/signin/x",
   };
-  const hosted = await listToolNames(createTokenContext("some-token"));
+  const hosted = await listToolNames(createUserContext("some-user"));
   const other = await listToolNames(inMemory);
   assert.deepEqual(other, hosted);
-  assert.equal(hosted.length, 41);
+  assert.equal(hosted.length, 36);
+  for (const name of hosted) assert.doesNotMatch(name, /step/i, "STEP tools are not exposed");
 });

@@ -12,9 +12,7 @@ import { SCHOOL_HOSTS } from "../api/d2l-client.js";
 import type { D2LSchool } from "../types/schools.js";
 import { sourceLinksEnabled } from "./config.js";
 
-export const STEP_HOST = "stms.polite.edu.sg";
-
-export type LinkSystem = D2LSchool | "step";
+export type LinkSystem = D2LSchool;
 
 export type LinkPattern =
   | "courseHome"
@@ -38,24 +36,16 @@ export type LinkPattern =
   | "schoolHome"
   | "graderGradebook"
   | "graderAssignments"
-  | "graderQuizzes"
-  | "stepMyCourses"
-  | "stepCourse"
-  | "stepCatalogueCourse"
-  | "stepHome"
-  | "stepCalendar"
-  | "stepProfile";
+  | "graderQuizzes";
 
-const both = { nyp: true, politemall: true, step: false } as const;
+const both = { nyp: true, politemall: true } as const;
 // No item of this kind exists in the account's POLITEMall courses, so it has not been opened there.
-const nypOnly = { nyp: true, politemall: false, step: false } as const;
-const stepOnly = { nyp: false, politemall: false, step: true } as const;
+const nypOnly = { nyp: true, politemall: false } as const;
 
 // Where each pattern has been verified (true) or not (false). An unverified pair emits no link.
 // Flipping an entry is the whole change needed to enable or switch off a pattern.
 //  - POLITEMall's test account is a Learner, so it cannot open the grader pages, and it has no
 //    assignment folder or calendar event to test with.
-//  - STEP was only tested with a course at institute 4 (NYP).
 export const VERIFIED: Record<LinkPattern, Record<LinkSystem, boolean>> = {
   courseHome: both,
   announcement: both,
@@ -79,17 +69,7 @@ export const VERIFIED: Record<LinkPattern, Record<LinkSystem, boolean>> = {
   graderGradebook: nypOnly,
   graderAssignments: nypOnly,
   graderQuizzes: nypOnly,
-  stepMyCourses: stepOnly,
-  stepCourse: stepOnly,
-  stepCatalogueCourse: stepOnly,
-  stepHome: stepOnly,
-  stepCalendar: stepOnly,
-  stepProfile: stepOnly,
 };
-
-// Institutes a STEP enrolled-course link has been opened for (informational; the link always
-// uses the course's own institute value).
-export const STEP_VERIFIED_INSTITUTES = [4];
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -107,7 +87,7 @@ export function toId(raw: unknown): number | undefined {
 }
 
 function hostOf(system: LinkSystem): string {
-  return system === "step" ? STEP_HOST : SCHOOL_HOSTS[system];
+  return SCHOOL_HOSTS[system];
 }
 
 // `path` is not a string when an id failed validation (the `id(x) && "/path"` idiom leaves
@@ -165,19 +145,6 @@ export const link = {
     const safe = sameTenantUrl(s, d2lSuppliedUrl);
     return safe && sourceLinksEnabled() && VERIFIED.calendarEvent[s] ? safe : undefined;
   },
-};
-
-export const stepLink = {
-  myCourses: () => emit("stepMyCourses", "step", "/student/mycourse"),
-  // `institute` is the course's own institute field; the page resolves the course from courseId.
-  course: (courseId: unknown, institute: unknown) =>
-    emit("stepCourse", "step", guid(courseId) && id(institute) && `/student/mycourse/details/${guid(courseId)}/${id(institute)}/coursedetails`),
-  // Keys on the catalogue item's own `id`, never its courseId: with courseId the page renders blank.
-  catalogueCourse: (catalogueItemId: unknown) =>
-    emit("stepCatalogueCourse", "step", guid(catalogueItemId) && `/student/ihlcourse/detail/${guid(catalogueItemId)}`),
-  home: () => emit("stepHome", "step", "/student/"),
-  calendar: () => emit("stepCalendar", "step", "/student/calendar"),
-  profile: () => emit("stepProfile", "step", "/student/profile"),
 };
 
 // Accepts a D2L-supplied URL only if it is https, on exactly this school's host, without
