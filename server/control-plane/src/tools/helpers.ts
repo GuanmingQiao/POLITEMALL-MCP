@@ -31,6 +31,23 @@ export async function authFor(ctx: ToolContext, school: D2LSchool): Promise<{ ok
   }
 }
 
+// Runs one read-only D2L operation with `holder.auth`. If D2L rejects that credential (a session
+// error) the context gets one chance to supply a replacement, and the operation is repeated once
+// with it; `holder.auth` is updated so later diagnosis uses the credential that was last tried.
+// Anything else, a missing recover hook, no better credential, or a second rejection, goes to the
+// caller exactly as before.
+export async function withRecovery<T>(ctx: ToolContext, school: D2LSchool, holder: { auth: string }, run: (auth: string) => Promise<T>): Promise<T> {
+  try {
+    return await run(holder.auth);
+  } catch (err) {
+    if (!(err instanceof SessionExpiredError) || !ctx.recoverD2lAuth) throw err;
+    const next = await ctx.recoverD2lAuth(school, holder.auth);
+    if (!next) throw err;
+    holder.auth = next;
+    return await run(next);
+  }
+}
+
 // Turns a failed D2L call into a message an agent can act on, or undefined if `err` isn't a
 // D2L/session/version failure (a genuine bug — let it propagate). For 403/404 on a course-scoped
 // call it also asks D2L for the caller's own enrollment: the HTTP status alone can't tell "not in
@@ -93,12 +110,12 @@ export async function runAcrossD2LSchools<T>(
       warnings.push(`${school}: ${credential.message}`);
       continue;
     }
-    const cookieHeader = credential.auth;
+    const holder = { auth: credential.auth };
     try {
-      results.push(...(await fn(school, cookieHeader)));
+      results.push(...(await withRecovery(ctx, school, holder, (auth) => fn(school, auth))));
       succeeded.push(school);
     } catch (err) {
-      const message = await explainD2lError(ctx, err, school, cookieHeader);
+      const message = await explainD2lError(ctx, err, school, holder.auth);
       if (message === undefined) throw err;
       failed++;
       warnings.push(`${school}: ${message}`);
@@ -147,12 +164,12 @@ export async function runForD2LCourse(
   const { school, numericId } = parseCourseId(courseId);
   const credential = await authFor(ctx, school);
   if (!credential.ok) return errorResult(credential.message);
-  const cookieHeader = credential.auth;
+  const holder = { auth: credential.auth };
   try {
-    const { data, opts } = unwrapLinked(await fn(school, cookieHeader, numericId));
+    const { data, opts } = unwrapLinked(await withRecovery(ctx, school, holder, (auth) => fn(school, auth, numericId)));
     return toolResult(data, [school], opts);
   } catch (err) {
-    const message = await explainD2lError(ctx, err, school, cookieHeader, courseId);
+    const message = await explainD2lError(ctx, err, school, holder.auth, courseId);
     if (message === undefined) throw err;
     return errorResult(message);
   }

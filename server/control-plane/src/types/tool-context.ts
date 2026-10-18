@@ -13,6 +13,10 @@ export interface ToolContext {
   getD2lAuth(school: School): Promise<string | null>;
   // D2L rejected the credential: forget the cached token so the next call renews it.
   invalidateD2lAuth?(school: School): Promise<void>;
+  // D2L rejected `rejectedAuth` before it should have expired. A replacement credential to repeat
+  // the call with, or null when there is none better. Throws SessionExpiredError when the session
+  // is gone and TokenRenewalError when D2L is only temporarily unreachable.
+  recoverD2lAuth?(school: School, rejectedAuth: string): Promise<string | null>;
   // Where a user goes to sign in again — shown in "session expired" messages. A fresh one-time
   // link each time it is read.
   connectUrl(): string;

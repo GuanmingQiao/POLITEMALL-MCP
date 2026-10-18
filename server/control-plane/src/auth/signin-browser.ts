@@ -1,9 +1,10 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { SCHOOL_HOSTS } from "../api/d2l-client.js";
-import { TokenRenewalError } from "../api/errors.js";
 import type { D2LSchool } from "../types/schools.js";
 import { config } from "../utils/config.js";
-import { getBrowserState, saveBrowserState, type SchoolSession } from "./session-vault.js";
+import type { ReloginResult } from "./d2l-session.js";
+import { hasNewerMicrosoftState, parseBrowserState } from "./microsoft-state.js";
+import { browserStateStatus, getBrowserState, saveBrowserState, touchBrowserState, type SchoolSession } from "./session-vault.js";
 
 // Everything that touches Chromium. A browser exists only while a sign-in or a silent re-login is
 // running; it is closed as soon as that finishes, fails or times out. The viewport is fixed so the
@@ -156,33 +157,69 @@ export async function waitForD2lHome(page: Page, school: D2LSchool, timeoutMs: n
   return false;
 }
 
+// ---- Microsoft's "Stay signed in?" page ----
+
+// Exported so tests can point the Microsoft-only behaviour at a local stand-in.
+export const MICROSOFT_HOSTS = new Set(["login.microsoftonline.com", "login.live.com"]);
+
+// On Microsoft's "Stay signed in?" page, press Yes. Without it Microsoft issues only a short-lived
+// session cookie and the saved state stops working within about a day. This presses a button; it
+// reads nothing the person typed. Only a Microsoft host is touched, and any failure is ignored so
+// it can never block a sign-in. True when Yes was pressed.
+export async function answerStaySignedIn(page: Page): Promise<boolean> {
+  try {
+    if (!MICROSOFT_HOSTS.has(new URL(page.url()).hostname)) return false;
+    const onPrompt = await page.evaluate(() => {
+      const yes = document.getElementById("idSIButton9");
+      const no = document.getElementById("idBtn_Back");
+      return !!yes && !!no && /stay signed in/i.test(document.body?.innerText ?? "");
+    });
+    if (!onPrompt) return false;
+    await page.click("#idSIButton9", { timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ---- silent re-login ----
 
 const SILENT_TIMEOUT_MS = 30_000;
-const MICROSOFT_HOSTS = new Set(["login.microsoftonline.com", "login.live.com"]);
+const MAX_KMSI_CLICKS = 3;
 
 // A fresh headless browser replays the saved Microsoft state. If Microsoft still recognises the
 // person, D2L lands on its home without any input and the new session is returned (and the
-// refreshed browser state saved). If Microsoft asks for anything, there is no one to answer, so
-// this gives up (null) and the caller asks the person to sign in again.
-export async function silentRelogin(userId: string, school: D2LSchool): Promise<SchoolSession | null> {
+// refreshed browser state saved, when it improves on what was saved). If Microsoft asks for
+// anything, there is no one to answer, so this gives up and says why, in a fixed set of words that
+// are safe to log. The caller asks the person to sign in again.
+export async function silentRelogin(userId: string, school: D2LSchool): Promise<ReloginResult> {
+  const status = browserStateStatus(userId);
+  if (status !== "ok") return { ok: false, reason: status === "absent" ? "no_state" : "state_expired" };
   const state = getBrowserState(userId);
-  if (!state) return null;
+  if (!state) return { ok: false, reason: "no_state" };
   const release = acquireBrowserSlot();
-  if (!release) throw new TokenRenewalError("Too many sign-ins are running right now");
+  if (!release) return { ok: false, reason: "no_slot" };
   let launched: LaunchedBrowser | undefined;
   try {
     launched = await launchBrowser(state);
     const { page, context } = launched;
     await page.goto(`${origins[school]}/d2l/home`, { waitUntil: "domcontentloaded", timeout: 20_000 }).catch(() => undefined);
 
-    const deadline = Date.now() + SILENT_TIMEOUT_MS;
-    while (Date.now() < deadline) {
+    const started = Date.now();
+    let kmsiClicks = 0;
+    while (Date.now() - started < SILENT_TIMEOUT_MS) {
       if (onD2lHome(page.url(), school)) {
         const session = await harvestSession(page, context, school);
-        if (!session) return null;
-        await saveBrowserState(userId, JSON.stringify(await context.storageState()));
-        return session;
+        if (!session) return { ok: false, reason: "no_session" };
+        const fresh = JSON.stringify(await context.storageState());
+        if (hasNewerMicrosoftState(parseBrowserState(state), parseBrowserState(fresh))) await saveBrowserState(userId, fresh);
+        else await touchBrowserState(userId);
+        return { ok: true, session };
+      }
+      if (kmsiClicks < MAX_KMSI_CLICKS && (await answerStaySignedIn(page))) {
+        kmsiClicks++;
+        await page.waitForTimeout(500);
+        continue;
       }
       // Stuck on a Microsoft page that is showing something to answer: no one is here to do it.
       let host = "";
@@ -191,12 +228,12 @@ export async function silentRelogin(userId: string, school: D2LSchool): Promise<
       } catch {
         // about:blank while redirecting
       }
-      if (MICROSOFT_HOSTS.has(host) && Date.now() - (deadline - SILENT_TIMEOUT_MS) > 12_000) return null;
+      if (MICROSOFT_HOSTS.has(host) && Date.now() - started > 12_000) return { ok: false, reason: "microsoft_prompt" };
       await page.waitForTimeout(500);
     }
-    return null;
+    return { ok: false, reason: "timeout" };
   } catch {
-    return null;
+    return { ok: false, reason: "error" };
   } finally {
     await launched?.close();
     release();

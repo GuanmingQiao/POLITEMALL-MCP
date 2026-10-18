@@ -7,7 +7,7 @@ import { callD2lOperation } from "../api/d2l-routes.js";
 import { parseCourseId } from "../api/courses.js";
 import { InvalidRouteParamsError, UnsupportedOperationError } from "../api/errors.js";
 import { READ_ONLY } from "./schemas.js";
-import { toolResult, errorResult, explainD2lError, authFor } from "./helpers.js";
+import { toolResult, errorResult, explainD2lError, authFor, withRecovery } from "./helpers.js";
 
 export function registerCallD2lOperation(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
@@ -47,17 +47,19 @@ export function registerCallD2lOperation(server: McpServer, ctx: ToolContext): v
 
       const credential = await authFor(ctx, targetSchool);
       if (!credential.ok) return errorResult(credential.message);
-      const cookieHeader = credential.auth;
+      const holder = { auth: credential.auth };
 
       try {
-        const result = await callD2lOperation(targetSchool, cookieHeader, operation, pathParams ?? {}, queryParams ?? {}, orgUnitId);
+        const result = await withRecovery(ctx, targetSchool, holder, (auth) =>
+          callD2lOperation(targetSchool, auth, operation, pathParams ?? {}, queryParams ?? {}, orgUnitId)
+        );
         // Raw passthrough: no item links, only where and when it was read.
         return toolResult({ operation, result }, [targetSchool]);
       } catch (err) {
         if (err instanceof InvalidRouteParamsError || err instanceof UnsupportedOperationError) {
           return errorResult(err.message);
         }
-        const message = await explainD2lError(ctx, err, targetSchool, cookieHeader, courseId);
+        const message = await explainD2lError(ctx, err, targetSchool, holder.auth, courseId);
         if (message === undefined) throw err;
         return errorResult(`"${operation}" failed. ${message}`);
       }

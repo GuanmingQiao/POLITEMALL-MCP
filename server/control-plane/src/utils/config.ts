@@ -41,6 +41,11 @@ export const config = {
   signinMaxConcurrent: Number(process.env.SIGNIN_MAX_CONCURRENT ?? 1),
   signinTimeoutMs: Number(process.env.SIGNIN_TIMEOUT_MS ?? 5 * 60 * 1000),
   // How long a sign-in link can wait to be opened (it is read from a chat message, so it needs
-  // longer than the sign-in itself). Once opened it is single-use.
-  signinLinkTtlMs: Number(process.env.SIGNIN_LINK_TTL_MS ?? 15 * 60 * 1000),
+  // longer than the sign-in itself). Once the browser starts, the sign-in limit above governs.
+  signinLinkTtlMs: Number(process.env.SIGNIN_LINK_TTL_MS ?? 60 * 60 * 1000),
+  // How long a sign-in browser is kept after its viewer disconnects (for example a phone browser
+  // sent to the background to approve a push in Authenticator) so the viewer can come back.
+  signinReattachGraceMs: Number(process.env.SIGNIN_REATTACH_GRACE_MS ?? 2 * 60 * 1000),
+  // How often every stored D2L session is renewed in the background to keep it alive.
+  keepAliveIntervalMs: Number(process.env.KEEPALIVE_INTERVAL_MS ?? 60 * 60 * 1000),
 };

@@ -62,3 +62,33 @@ test("5xx, 429, network errors, 403 and junk are transient, never session-expire
     assert.equal(!r.ok && r.reason, "transient", String(res));
   }
 });
+
+// spec: streamed-login-session - "Stored D2L sessions are kept alive in the background" (rotated cookies)
+test("replacement session cookies in the response are returned merged into the cookie header", async () => {
+  const headers = new Headers();
+  headers.append("set-cookie", "d2lSessionVal=NEWA; path=/; HttpOnly");
+  headers.append("set-cookie", "somethingElse=zzz; path=/");
+  const { result } = mint(new Response(JSON.stringify({ access_token: "tok", expires_in: 3000 }), { status: 200, headers }));
+  const r = await result;
+  assert.ok(r.ok);
+  if (r.ok) assert.equal(r.cookieHeader, "d2lSessionVal=NEWA; d2lSecureSessionVal=b");
+});
+
+test("no replacement cookies, or the same values, leave cookieHeader out", async () => {
+  const same = new Headers();
+  same.append("set-cookie", "d2lSessionVal=a; path=/");
+  const r1 = await mint(new Response(JSON.stringify({ access_token: "t" }), { status: 200, headers: same })).result;
+  const r2 = await mint(new Response(JSON.stringify({ access_token: "t" }), { status: 200 })).result;
+  assert.ok(r1.ok && r2.ok);
+  if (r1.ok && r2.ok) {
+    assert.equal("cookieHeader" in r1, false);
+    assert.equal("cookieHeader" in r2, false);
+  }
+});
+
+test("rotated cookie values never appear in a failure result", async () => {
+  const headers = new Headers();
+  headers.append("set-cookie", "d2lSessionVal=LEAKME; path=/");
+  const r = await mint(new Response("oops", { status: 503, headers })).result;
+  assert.ok(!JSON.stringify(r).includes("LEAKME"));
+});

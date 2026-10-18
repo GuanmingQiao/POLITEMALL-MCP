@@ -17,7 +17,7 @@ const DEFAULT_LIFETIME_S = 3600;
 const TIMEOUT_MS = 15_000;
 
 export type MintResult =
-  | { ok: true; accessToken: string; expiresAt: number }
+  | { ok: true; accessToken: string; expiresAt: number; cookieHeader?: string }
   | { ok: false; reason: "sessionExpired" | "transient"; detail?: string };
 
 export interface MintOptions {
@@ -42,6 +42,33 @@ function expiryOf(accessToken: string, expiresIn: unknown, now: number): number 
   return now + DEFAULT_LIFETIME_S * 1000;
 }
 
+const SESSION_COOKIES = ["d2lSessionVal", "d2lSecureSessionVal"];
+
+// If the token response re-issued either session cookie, the cookie header with the new value(s)
+// swapped in; undefined when nothing changed. Values are handled but never logged or thrown.
+export function rotatedCookieHeader(cookieHeader: string, setCookies: string[]): string | undefined {
+  const replacements = new Map<string, string>();
+  for (const line of setCookies) {
+    const pair = line.split(";")[0];
+    const eq = pair.indexOf("=");
+    if (eq <= 0) continue;
+    const name = pair.slice(0, eq).trim();
+    const value = pair.slice(eq + 1).trim();
+    if (SESSION_COOKIES.includes(name) && value.length > 0) replacements.set(name, value);
+  }
+  if (replacements.size === 0) return undefined;
+  const parts = cookieHeader.split(";").map((p) => p.trim()).filter(Boolean);
+  let changed = false;
+  const next = parts.map((part) => {
+    const name = part.slice(0, part.indexOf("="));
+    const value = replacements.get(name);
+    if (value === undefined || part === `${name}=${value}`) return part;
+    changed = true;
+    return `${name}=${value}`;
+  });
+  return changed ? next.join("; ") : undefined;
+}
+
 function isLoginRedirect(location: string | null, origin: string): boolean {
   if (!location) return false;
   try {
@@ -57,6 +84,7 @@ export async function mintAccessToken({ school, cookieHeader, xsrfToken, fetchIm
   let status: number;
   let body: string;
   let location: string | null;
+  let setCookies: string[] = [];
   try {
     const res = await fetchImpl(`${origin}/d2l/lp/auth/oauth2/token`, {
       method: "POST",
@@ -68,6 +96,7 @@ export async function mintAccessToken({ school, cookieHeader, xsrfToken, fetchIm
     status = res.status;
     body = await res.text();
     location = res.headers.get("location");
+    setCookies = typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
   } catch (err) {
     return { ok: false, reason: "transient", detail: err instanceof Error ? err.message : String(err) };
   }
@@ -88,5 +117,11 @@ export async function mintAccessToken({ school, cookieHeader, xsrfToken, fetchIm
   if (!payload || typeof payload.access_token !== "string" || payload.access_token.length === 0) {
     return { ok: false, reason: "transient", detail: "the token endpoint returned no access_token" };
   }
-  return { ok: true, accessToken: payload.access_token, expiresAt: expiryOf(payload.access_token, payload.expires_in, now()) };
+  const rotated = rotatedCookieHeader(cookieHeader, setCookies);
+  return {
+    ok: true,
+    accessToken: payload.access_token,
+    expiresAt: expiryOf(payload.access_token, payload.expires_in, now()),
+    ...(rotated ? { cookieHeader: rotated } : {}),
+  };
 }

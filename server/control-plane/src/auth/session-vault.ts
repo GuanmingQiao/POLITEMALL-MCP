@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { config } from "../utils/config.js";
 import { decrypt, encrypt } from "./crypto.js";
 import type { School } from "../types/schools.js";
+import { parseBrowserState, persistentExpiry } from "./microsoft-state.js";
 
 // One record per signed-in person. Everything sensitive is encrypted at rest with the master key:
 // the Microsoft sign-in state of the streamed browser (what silent re-login replays) and, per
@@ -16,6 +17,10 @@ export interface SchoolSession {
   xsrfToken: string;
   accessToken?: string;
   accessTokenExpiresAt?: number; // epoch ms
+  // Set when the D2L session died and a silent re-login could not revive it. The session is kept
+  // (so the person is told "expired", not "not connected") but not retried for a while.
+  lapsedAt?: number; // epoch ms
+  reloginFailures?: number; // consecutive failed silent re-logins
 }
 
 interface UserRecord {
@@ -23,7 +28,9 @@ interface UserRecord {
   lastUsedAt: string;
   encryptedSchools: Partial<Record<School, string>>;
   encryptedBrowserState?: string;
-  browserStateSavedAt?: string;
+  browserStateSavedAt?: string; // last time the state was saved or successfully replayed
+  // Microsoft's persistent sign-in cookie expiry (epoch seconds), when the saved state has one.
+  msPersistentExpiresAt?: number;
 }
 
 type VaultFile = Record<string, UserRecord>;
@@ -104,28 +111,62 @@ export function clearSchoolSession(userId: string, school: School): Promise<void
   });
 }
 
-// Microsoft's browser state is the most sensitive thing held, so it is only returned while within
-// the retention window of its last successful use.
-export function getBrowserState(userId: string, now = Date.now()): string | null {
+// Whether saved Microsoft state can be replayed: it exists, is inside the retention window of its
+// last successful use, and (when Microsoft's persistent cookie expiry is known) that has not passed.
+export type BrowserStateStatus = "ok" | "absent" | "expired";
+
+export function browserStateStatus(userId: string, now = Date.now()): BrowserStateStatus {
   const record = readVault()[userId];
-  if (!record?.encryptedBrowserState || !record.browserStateSavedAt) return null;
+  if (!record?.encryptedBrowserState || !record.browserStateSavedAt) return "absent";
   const ageMs = now - new Date(record.browserStateSavedAt).getTime();
-  if (ageMs > config.msStateRetentionDays * 24 * 60 * 60 * 1000) return null;
+  if (ageMs > config.msStateRetentionDays * 24 * 60 * 60 * 1000) return "expired";
+  if (record.msPersistentExpiresAt !== undefined && record.msPersistentExpiresAt * 1000 <= now) return "expired";
+  return "ok";
+}
+
+// Microsoft's browser state is the most sensitive thing held, so it is only returned while it can
+// still be replayed.
+export function getBrowserState(userId: string, now = Date.now()): string | null {
+  if (browserStateStatus(userId, now) !== "ok") return null;
+  const record = readVault()[userId];
   try {
-    return decrypt(record.encryptedBrowserState);
+    return decrypt(record!.encryptedBrowserState!);
   } catch {
     return null;
   }
 }
 
 export function saveBrowserState(userId: string, stateJson: string): Promise<boolean> {
+  const expiry = persistentExpiry(parseBrowserState(stateJson));
   return withWrite((vault) => {
     const record = vault[userId];
     if (!record) return false;
     record.encryptedBrowserState = encrypt(stateJson);
     record.browserStateSavedAt = new Date().toISOString();
+    if (expiry !== undefined) record.msPersistentExpiresAt = expiry;
+    else delete record.msPersistentExpiresAt;
     return true;
   });
+}
+
+// A silent re-login worked but produced nothing newer to keep: the saved state stays as it is and
+// only its last-used time moves.
+export function touchBrowserState(userId: string): Promise<boolean> {
+  return withWrite((vault) => {
+    const record = vault[userId];
+    if (!record?.encryptedBrowserState) return false;
+    record.browserStateSavedAt = new Date().toISOString();
+    return true;
+  });
+}
+
+// Every (person, school) with a stored session, for the periodic keep-alive.
+export function listSessionTargets(): { userId: string; school: School }[] {
+  const targets: { userId: string; school: School }[] = [];
+  for (const [userId, record] of Object.entries(readVault())) {
+    for (const school of Object.keys(record.encryptedSchools) as School[]) targets.push({ userId, school });
+  }
+  return targets;
 }
 
 // Sign-out: everything held for this person is deleted, not just marked unusable.

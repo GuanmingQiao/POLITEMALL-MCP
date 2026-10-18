@@ -4,8 +4,9 @@ import { randomBytes } from "node:crypto";
 import type { Request, Response } from "express";
 import { WebSocketServer, type WebSocket } from "ws";
 import { config } from "../utils/config.js";
-import { getOpenSignin, getSignin } from "./signin-registry.js";
-import { SigninSession, type SigninDeps } from "./signin-session.js";
+import { auditLog } from "../utils/audit-log.js";
+import { checkSignin, getSignin, type LinkRefusal, type PendingSignin, type SigninOutcome } from "./signin-registry.js";
+import { SigninSession, type SigninDeps, type SigninIo } from "./signin-session.js";
 import { VIEWPORT } from "./signin-browser.js";
 
 // The two entry points of a streamed sign-in: the page the person opens (GET /signin/:id) and the
@@ -33,7 +34,7 @@ button,input{font:inherit;padding:8px 12px;border:1px solid var(--line);backgrou
 button{cursor:pointer}button:hover{border-color:var(--accent)}input{flex:1;min-width:180px}
 </style></head><body><main>
 <h1>Sign in to POLITEMall</h1>
-<p>You are typing into a secure browser running on the server. Your password and codes go only to Microsoft's sign-in page and are never stored or logged. If Microsoft offers a passkey or security key, choose another way to sign in (password or the Authenticator app). This page closes itself when you are signed in.</p>
+<p>You are typing into a secure browser running on the server. Your password and codes go only to Microsoft's sign-in page and are never stored or logged. If Microsoft offers a passkey or security key, choose another way to sign in (password or the Authenticator app). If Microsoft asks "Stay signed in?", it is answered Yes for you so you rarely need to sign in again. You can switch to your Authenticator app and come back; this page reconnects and closes itself when you are signed in.</p>
 <p id="status" role="status">Connecting…</p>
 <div class="frame"><canvas id="screen" width="${VIEWPORT.width}" height="${VIEWPORT.height}" tabindex="0"></canvas></div>
 <div class="row">
@@ -46,17 +47,30 @@ button{cursor:pointer}button:hover{border-color:var(--accent)}input{flex:1;min-w
 (()=>{
 const W=${VIEWPORT.width},H=${VIEWPORT.height};
 const c=document.getElementById('screen'),g=c.getContext('2d'),st=document.getElementById('status');
-const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/signin/${id}/ws');
-ws.binaryType='arraybuffer';let ended=false;
-const send=o=>{if(ws.readyState===1&&!ended)ws.send(JSON.stringify(o))};
-ws.onmessage=async e=>{
-  if(typeof e.data!=='string'){try{const b=await createImageBitmap(new Blob([e.data],{type:'image/jpeg'}));g.drawImage(b,0,0,W,H);b.close&&b.close()}catch{}return}
-  const m=JSON.parse(e.data);
-  if(m.type==='status')st.textContent=m.message;
-  if(m.type==='done'){ended=true;st.textContent='Signed in. You can close this tab.';if(m.redirect)location.replace(m.redirect)}
-  if(m.type==='fail'){ended=true;st.textContent=m.reason}
-};
-ws.onclose=()=>{if(!ended)st.textContent='The connection closed. Ask for a new sign-in link.'};
+let ws=null,ended=false,tries=0,timer=null;
+const send=o=>{if(ws&&ws.readyState===1&&!ended)ws.send(JSON.stringify(o))};
+function connect(){
+  if(ended)return;
+  clearTimeout(timer);
+  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/signin/${id}/ws');
+  ws.binaryType='arraybuffer';
+  ws.onopen=()=>{tries=0};
+  ws.onmessage=async e=>{
+    if(typeof e.data!=='string'){try{const b=await createImageBitmap(new Blob([e.data],{type:'image/jpeg'}));g.drawImage(b,0,0,W,H);b.close&&b.close()}catch{}return}
+    const m=JSON.parse(e.data);
+    if(m.type==='status')st.textContent=m.message;
+    if(m.type==='done'){ended=true;st.textContent='Signed in. You can close this tab.'+(m.notice?' '+m.notice:'');if(m.redirect)setTimeout(()=>location.replace(m.redirect),m.notice?5000:0)}
+    if(m.type==='fail'){ended=true;st.textContent=m.reason}
+  };
+  ws.onclose=()=>{
+    if(ended)return;
+    if(++tries>60){ended=true;st.textContent='The connection closed. Ask for a new sign-in link.';return}
+    st.textContent='Reconnecting\\u2026';
+    timer=setTimeout(connect,tries<3?500:2000);
+  };
+}
+connect();
+document.addEventListener('visibilitychange',()=>{if(!ended&&document.visibilityState==='visible'&&(!ws||ws.readyState>1))connect()});
 const pt=e=>{const r=c.getBoundingClientRect();return{x:Math.round((e.clientX-r.left)*W/r.width),y:Math.round((e.clientY-r.top)*H/r.height)}};
 c.addEventListener('pointerdown',e=>{c.focus();send({t:'mouse',type:'down',button:e.button,...pt(e)})});
 c.addEventListener('pointerup',e=>send({t:'mouse',type:'up',button:e.button,...pt(e)}));
@@ -70,13 +84,21 @@ document.getElementById('nyp').onclick=()=>send({t:'open',school:'nyp'});
 </script></body></html>`;
 }
 
+const REFUSAL_TEXT: Record<LinkRefusal, string> = {
+  expired: "This sign-in link has expired. Ask your assistant for a new one.",
+  finished: "This sign-in link has already been used, or its sign-in has ended. Ask your assistant for a new one.",
+  unknown: "This sign-in link is not recognised. The server may have restarted since it was issued. Ask your assistant for a new one.",
+};
+
 // GET /signin/:id
 export function signinPage(req: Request, res: Response): void {
   const id = String(req.params.id ?? "");
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Referrer-Policy", "no-referrer");
-  if (!getOpenSignin(id)) {
-    res.status(410).type("text/plain").send("This sign-in link has already been used or has expired. Ask your assistant for a new one.");
+  const checked = checkSignin(id);
+  if ("refused" in checked) {
+    auditLog("signin_link_refused", { reason: checked.refused, where: "page" });
+    res.status(410).type("text/plain").send(REFUSAL_TEXT[checked.refused]);
     return;
   }
   const nonce = randomBytes(16).toString("base64");
@@ -98,6 +120,58 @@ function sameOrigin(req: IncomingMessage): boolean {
   }
 }
 
+// One running sign-in and whoever is currently watching it. The browser outlives a viewer's
+// connection for a grace period so a person can switch apps (to approve a push) and come back.
+interface Live {
+  session: SigninSession;
+  ws?: WebSocket;
+  lastStatus?: string;
+  grace?: NodeJS.Timeout;
+}
+const lives = new Map<string, Live>();
+
+const attached = (live: Live): WebSocket | undefined => (live.ws && live.ws.readyState === live.ws.OPEN ? live.ws : undefined);
+
+function deliver(signin: PendingSignin, ws: WebSocket): void {
+  if (!signin.outcome) return;
+  ws.send(JSON.stringify(signin.outcome));
+  signin.outcomeDelivered = true;
+  ws.close();
+}
+
+// The sign-in ended. Tell the viewer if there is one; otherwise the outcome waits for the next.
+function finish(signin: PendingSignin, live: Live, outcome: SigninOutcome): void {
+  signin.outcome = outcome;
+  clearTimeout(live.grace);
+  const ws = attached(live);
+  if (ws) deliver(signin, ws);
+}
+
+function viewerIo(signin: PendingSignin, live: Live): SigninIo {
+  return {
+    frame: (jpeg) => void attached(live)?.send(jpeg, { binary: true }),
+    status: (message) => {
+      live.lastStatus = message;
+      attached(live)?.send(JSON.stringify({ type: "status", message }));
+    },
+    done: (redirect, notice) => finish(signin, live, { type: "done", redirect, notice }),
+    fail: (reason) => finish(signin, live, { type: "fail", reason }),
+  };
+}
+
+// Used while nobody is watching: frames are dropped, the latest status is remembered, and an
+// outcome is held for the viewer who comes back.
+function holderIo(signin: PendingSignin, live: Live): SigninIo {
+  return {
+    frame: () => undefined,
+    status: (message) => {
+      live.lastStatus = message;
+    },
+    done: (redirect, notice) => finish(signin, live, { type: "done", redirect, notice }),
+    fail: (reason) => finish(signin, live, { type: "fail", reason }),
+  };
+}
+
 // Wires the sign-in WebSocket into the HTTP server. `deps` lets tests replace Chromium.
 export function attachSigninSockets(server: Server, deps?: SigninDeps): void {
   const wss = new WebSocketServer({ noServer: true });
@@ -105,42 +179,58 @@ export function attachSigninSockets(server: Server, deps?: SigninDeps): void {
   server.on("upgrade", (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const match = WS_PATH.exec((req.url ?? "").split("?")[0]);
     if (!match) return; // not ours; another handler (or none) deals with it
-    const signin = getOpenSignin(match[1]);
-    if (!signin || !sameOrigin(req)) {
+    const checked = checkSignin(match[1]);
+    const live = lives.get(match[1]);
+    const refuse = (reason?: string) => {
+      if (reason) auditLog("signin_link_refused", { reason, where: "socket" });
       socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
       socket.destroy();
-      return;
-    }
+    };
+    if ("refused" in checked) return refuse(checked.refused);
+    if (!sameOrigin(req)) return refuse();
+    // One viewer at a time: a second connection must not take over a sign-in someone is watching.
+    if (live && attached(live)) return refuse("in_use");
     wss.handleUpgrade(req, socket, head, (ws) => serve(ws, match[1], deps));
   });
 }
 
 function serve(ws: WebSocket, id: string, deps?: SigninDeps): void {
-  const signin = getOpenSignin(id);
+  const signin = getSignin(id);
   if (!signin) {
     ws.close();
     return;
   }
-  const send = (o: unknown) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(o));
-  const session = new SigninSession(
-    signin,
-    {
-      frame: (jpeg) => ws.readyState === ws.OPEN && ws.send(jpeg, { binary: true }),
-      status: (message) => send({ type: "status", message }),
-      done: (redirect) => {
-        send({ type: "done", redirect });
-        ws.close();
-      },
-      fail: (reason) => {
-        send({ type: "fail", reason });
-        ws.close();
-      },
-    },
-    deps
-  );
+  // The sign-in ended while nobody was watching: this viewer is told how, once.
+  if (signin.outcome && !signin.outcomeDelivered) {
+    deliver(signin, ws);
+    return;
+  }
 
+  let live = lives.get(id);
+  if (live) {
+    clearTimeout(live.grace);
+    live.ws = ws;
+    if (live.lastStatus) ws.send(JSON.stringify({ type: "status", message: live.lastStatus }));
+    void live.session.attach(viewerIo(signin, live));
+  } else if (signin.state === "open") {
+    const created: Live = { ws, session: undefined as unknown as SigninSession };
+    created.session = new SigninSession(signin, viewerIo(signin, created), deps);
+    lives.set(id, created);
+    live = created;
+    void created.session.run().finally(() => {
+      if (signin.state !== "running") {
+        clearTimeout(created.grace);
+        lives.delete(id);
+      }
+    });
+  } else {
+    ws.close();
+    return;
+  }
+
+  const current = live;
   ws.on("message", (data, isBinary) => {
-    if (isBinary) return;
+    if (isBinary || current.ws !== ws) return;
     let msg: unknown;
     try {
       msg = JSON.parse(data.toString());
@@ -148,12 +238,30 @@ function serve(ws: WebSocket, id: string, deps?: SigninDeps): void {
       return;
     }
     const m = msg as { t?: string; school?: unknown };
-    if (m.t === "open") void session.openSchool(m.school);
-    else void session.input(msg);
+    if (m.t === "open") void current.session.openSchool(m.school);
+    else void current.session.input(msg);
   });
-  // The viewer went away before the sign-in finished: end the browser and discard what it holds.
+  // The viewer went away. The browser is kept for a grace period, then closed with everything it
+  // held if nobody has come back.
   ws.on("close", () => {
-    if (getSignin(id)?.state === "running") void session.stop();
+    if (current.ws !== ws) return;
+    current.ws = undefined;
+    if (signin.state !== "running") return;
+    void current.session.attach(holderIo(signin, current), false);
+    clearTimeout(current.grace);
+    current.grace = setTimeout(() => {
+      if (current.ws || signin.state !== "running") return;
+      signin.failure = "viewer_left";
+      auditLog("signin_failed", { reason: "viewer_left" });
+      void current.session.stop();
+      lives.delete(id);
+    }, config.signinReattachGraceMs);
+    current.grace.unref?.();
   });
-  void session.run();
+}
+
+// Tests drop every live sign-in between cases.
+export function resetSigninStreamForTests(): void {
+  for (const live of lives.values()) clearTimeout(live.grace);
+  lives.clear();
 }

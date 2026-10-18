@@ -4,7 +4,7 @@ import type { D2LSchool } from "../types/schools.js";
 import { d2lWhoami } from "../api/identity.js";
 import { READ_ONLY } from "./schemas.js";
 import type { Source } from "./provenance.js";
-import { toolResult, explainD2lError, authFor } from "./helpers.js";
+import { toolResult, explainD2lError, authFor, withRecovery } from "./helpers.js";
 
 const D2L_SCHOOLS: D2LSchool[] = ["politemall", "nyp"];
 
@@ -29,12 +29,12 @@ export function registerWhoami(server: McpServer, ctx: ToolContext): void {
           warnings.push(`${school}: ${credential.message}`);
           continue;
         }
-        const cookieHeader = credential.auth;
+        const holder = { auth: credential.auth };
         try {
-          results[school] = await d2lWhoami(school, cookieHeader);
+          results[school] = await withRecovery(ctx, school, holder, (auth) => d2lWhoami(school, auth));
           sources.push(school);
         } catch (err) {
-          const message = await explainD2lError(ctx, err, school, cookieHeader);
+          const message = await explainD2lError(ctx, err, school, holder.auth);
           if (message === undefined) throw err;
           warnings.push(`${school}: ${message}`);
         }

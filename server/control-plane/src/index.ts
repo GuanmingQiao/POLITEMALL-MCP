@@ -6,6 +6,7 @@ import { SCHOOL_HOSTS } from "./api/d2l-client.js";
 import { configureD2lSession } from "./auth/d2l-session.js";
 import { silentRelogin } from "./auth/signin-browser.js";
 import { attachSigninSockets } from "./auth/signin-stream.js";
+import { startKeepAlive } from "./auth/keep-alive.js";
 
 await loadMasterKey();
 // Resolve each D2L tenant's latest LE/LP API version up front so problems show in the boot log.
@@ -21,3 +22,6 @@ const server = buildApp().listen(config.port, () => {
   console.log(`politemall-mcp control-plane listening on :${config.port}`);
 });
 attachSigninSockets(server);
+
+// Renew every stored D2L session hourly so idle ones do not expire between uses.
+startKeepAlive();

@@ -75,3 +75,59 @@ test("deleting a user removes everything held for them", async () => {
   assert.equal(await vault.deleteUser(user), false);
   assert.ok(!(user in JSON.parse(readFileSync(process.env.SESSION_FILE!, "utf-8"))));
 });
+
+// spec: streamed-login-session - "Lapsed sessions are re-established silently where possible"
+const persistentState = (expiresAt: number) =>
+  JSON.stringify({ cookies: [{ name: "ESTSAUTHPERSISTENT", value: "ms-secret", domain: ".login.microsoftonline.com", path: "/", expires: expiresAt }], origins: [] });
+
+test("saving state records Microsoft's persistent cookie expiry, and replay stops once it has passed", async () => {
+  const user = await vault.createUser();
+  const soon = Math.floor(Date.now() / 1000) + 3600;
+  await vault.saveBrowserState(user, persistentState(soon));
+  assert.equal(vault.browserStateStatus(user), "ok");
+  assert.ok(vault.getBrowserState(user));
+  assert.equal(vault.browserStateStatus(user, (soon + 1) * 1000), "expired");
+  assert.equal(vault.getBrowserState(user, (soon + 1) * 1000), null);
+  assert.ok(!readFileSync(process.env.SESSION_FILE!, "utf-8").includes("ms-secret"));
+});
+
+test("state with no recorded expiry (no cookie, session cookie, or an old record) falls back to the flat window", async () => {
+  const user = await vault.createUser();
+  const day = 24 * 60 * 60 * 1000;
+  await vault.saveBrowserState(user, persistentState(-1));
+  assert.equal(vault.browserStateStatus(user, Date.now() + 29 * day), "ok");
+  assert.equal(vault.browserStateStatus(user, Date.now() + 31 * day), "expired");
+  const nobody = await vault.createUser();
+  assert.equal(vault.browserStateStatus(nobody), "absent");
+});
+
+test("touching state moves its last-used time without changing what is stored", async () => {
+  const user = await vault.createUser();
+  const state = persistentState(Math.floor(Date.now() / 1000) + 99999);
+  await vault.saveBrowserState(user, state);
+  const before = JSON.parse(readFileSync(process.env.SESSION_FILE!, "utf-8"))[user];
+  await new Promise((r) => setTimeout(r, 15));
+  assert.equal(await vault.touchBrowserState(user), true);
+  const after = JSON.parse(readFileSync(process.env.SESSION_FILE!, "utf-8"))[user];
+  assert.equal(after.encryptedBrowserState, before.encryptedBrowserState, "the stored blob is untouched");
+  assert.notEqual(after.browserStateSavedAt, before.browserStateSavedAt);
+  assert.equal(vault.getBrowserState(user), state);
+  assert.equal(await vault.touchBrowserState(await vault.createUser()), false, "nothing saved, nothing to touch");
+});
+
+test("a lapsed school session is still listed, and every session is a keep-alive target", async () => {
+  const user = await vault.createUser();
+  await vault.saveSchoolSession(user, "nyp", { ...SESSION, lapsedAt: 5, reloginFailures: 1 });
+  assert.deepEqual(vault.connectedSchools(user), ["nyp"]);
+  assert.equal(vault.getSchoolSession(user, "nyp")?.lapsedAt, 5);
+  assert.ok(vault.listSessionTargets().some((t) => t.userId === user && t.school === "nyp"));
+});
+
+test("a fresh sign-in replaces a lapsed session outright, clearing the lapse", async () => {
+  const user = await vault.createUser();
+  await vault.saveSchoolSession(user, "nyp", { ...SESSION, lapsedAt: 5, reloginFailures: 2 });
+  await vault.saveSchoolSession(user, "nyp", { ...SESSION });
+  const s = vault.getSchoolSession(user, "nyp")!;
+  assert.equal(s.lapsedAt, undefined);
+  assert.equal(s.reloginFailures, undefined);
+});

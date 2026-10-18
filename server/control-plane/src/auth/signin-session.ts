@@ -5,6 +5,7 @@ import { auditLog } from "../utils/audit-log.js";
 import {
   VIEWPORT,
   acquireBrowserSlot,
+  answerStaySignedIn,
   harvestSession,
   launchBrowser,
   onD2lHome,
@@ -14,6 +15,7 @@ import {
 import type { MintResult } from "./token-mint.js";
 import { mintToken } from "./d2l-session.js";
 import { createUser, saveBrowserState, saveSchoolSession, type SchoolSession } from "./session-vault.js";
+import { hasPersistentMicrosoftCookie, parseBrowserState } from "./microsoft-state.js";
 import type { PendingSignin } from "./signin-registry.js";
 
 // One streamed sign-in: a Chromium that exists for exactly this person's sign-in. It is shown to
@@ -26,11 +28,12 @@ const SCHOOLS: D2LSchool[] = ["politemall", "nyp"];
 const SECOND_TENANT_GRACE_MS = 60_000;
 const POLL_MS = 500;
 const MAX_INPUT_PER_SECOND = 400;
+const MAX_KMSI_CLICKS = 3;
 
 export interface SigninIo {
   frame(jpeg: Buffer): void;
   status(message: string): void;
-  done(redirect?: string): void;
+  done(redirect?: string, notice?: string): void;
   fail(reason: string): void;
 }
 
@@ -59,7 +62,7 @@ export class SigninSession {
 
   constructor(
     private readonly signin: PendingSignin,
-    private readonly io: SigninIo,
+    private io: SigninIo,
     private readonly deps: SigninDeps = defaultDeps,
     private readonly overall = config.signinTimeoutMs
   ) {}
@@ -94,17 +97,25 @@ export class SigninSession {
 
       const userId = this.signin.userId ?? (await createUser());
       for (const [school, session] of sessions) await saveSchoolSession(userId, school, session);
-      await saveBrowserState(userId, JSON.stringify(await context.storageState()));
+      const stateJson = JSON.stringify(await context.storageState());
+      await saveBrowserState(userId, stateJson);
+      // Whether Microsoft will remember this sign-in (it does when "Stay signed in?" was answered
+      // Yes); without it the saved state stops working within about a day.
+      const persistent = hasPersistentMicrosoftCookie(parseBrowserState(stateJson));
       const redirect = await this.signin.onSuccess?.(userId);
+      const notice = persistent ? undefined : "Microsoft did not keep you signed in, so you may need to sign in again within about a day.";
       this.signin.redirectUrl = redirect;
       this.signin.state = "done";
-      auditLog("signin_ok", { schools: [...sessions.keys()] });
+      // Recorded before the browser is closed, so a viewer who reconnects at this moment is still told.
+      this.signin.outcome = { type: "done", redirect, notice };
+      auditLog("signin_ok", { schools: [...sessions.keys()], persistent });
       await this.stop();
-      this.io.done(redirect);
+      this.io.done(redirect, notice);
     } catch (err) {
       const reason = err instanceof Error ? err.message : "The sign-in failed.";
       this.signin.state = "failed";
       this.signin.failure = reason;
+      this.signin.outcome = { type: "fail", reason };
       auditLog("signin_failed", {});
       await this.stop();
       this.io.fail(reason);
@@ -122,7 +133,10 @@ export class SigninSession {
     let secondDeadline = 0;
     let secondStarted = false;
 
+    let kmsiClicks = 0;
     while (!this.finished && Date.now() < deadline && !page.isClosed()) {
+      // Microsoft's "Stay signed in?": answer Yes so the sign-in can be replayed later.
+      if (kmsiClicks < MAX_KMSI_CLICKS && (await answerStaySignedIn(page))) kmsiClicks++;
       for (const school of SCHOOLS) {
         if (found.has(school) || !onD2lHome(page.url(), school)) continue;
         const session = await harvestSession(page, context, school);
@@ -144,6 +158,21 @@ export class SigninSession {
       await page.waitForTimeout(POLL_MS).catch(() => undefined);
     }
     return found;
+  }
+
+  // A viewer (re)connected: send everything from now on to `io` and redraw the current page at
+  // once. Frames, status and the outcome that arrive while nobody is attached go to whatever `io`
+  // was last attached, which the stream layer makes a holder.
+  async attach(io: SigninIo, redraw = true): Promise<void> {
+    this.io = io;
+    if (redraw && this.cdp && !this.finished) {
+      // Starting a screencast that is already running sends nothing until the page changes, so it
+      // is stopped first: the restart draws the current page straight away.
+      await this.cdp.send("Page.stopScreencast").catch(() => undefined);
+      await this.cdp
+        .send("Page.startScreencast", { format: "jpeg", quality: 55, maxWidth: VIEWPORT.width, maxHeight: VIEWPORT.height, everyNthFrame: 1 })
+        .catch(() => undefined);
+    }
   }
 
   // The person asked for a particular tenant's page.

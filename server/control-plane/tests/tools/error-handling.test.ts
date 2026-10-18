@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { connect, mockD2l, json, bare, enrollment } from "../helpers/mcp-harness.js";
+import { configureD2lSession } from "../../src/auth/d2l-session.js";
+import { mintAccessToken } from "../../src/auth/token-mint.js";
 
 // End-to-end through a real MCP client, the real token store and encrypted cookie storage;
 // only D2L's HTTP responses are mocked. Covers what an agent actually sees when D2L refuses.
@@ -111,9 +113,27 @@ test("cross-course tools are an error only when every connected school failed", 
 
 test("an expired session tells the user to sign in again with a fresh one-time link", async (t) => {
   mockD2l(t, () => new Response(null, { status: 302 }));
+  // D2L has really ended the session: the replacement token cannot be minted and there is no
+  // Microsoft state to replay (the default), so the person is sent to sign in.
+  configureD2lSession({ mint: async () => ({ ok: false, reason: "sessionExpired" }) });
+  t.after(() => configureD2lSession({ mint: (o) => mintAccessToken(o) }));
   const c = await connect(["nyp"]);
   const r = await c.call("get_grades", { courseId: "nyp:524042" });
   assert.equal(r.isError, true);
   assert.match(r.text, /session expired — sign in again at .*\/signin\/[A-Za-z0-9_-]{16,}/);
+  await c.close();
+});
+
+test("a 302 with a token that D2L still honours is recovered silently, with no sign-in link", async (t) => {
+  let seen = 0;
+  mockD2l(t, (url) => {
+    if (url.includes("/grades/")) return ++seen === 1 ? new Response(null, { status: 302 }) : json([]);
+  });
+  configureD2lSession({ mint: async () => ({ ok: true, accessToken: "replacement", expiresAt: Date.now() + 3_600_000 }) });
+  t.after(() => configureD2lSession({ mint: (o) => mintAccessToken(o) }));
+  const c = await connect(["nyp"]);
+  const r = await c.call("get_grades", { courseId: "nyp:524042" });
+  assert.equal(r.isError, false);
+  assert.doesNotMatch(r.text, /sign in/i);
   await c.close();
 });
