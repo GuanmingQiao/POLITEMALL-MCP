@@ -51,7 +51,7 @@
 - [x] 2.4 Deploy to the live server and confirm in logs that the check passes against both
       `lms.polite.edu.sg` and `nyplms.polite.edu.sg` with the current pinned versions before
       proceeding to section 3. Deployed via `aws ssm send-command` (commit `78eab4b` pushed to
-      `origin/main`, pulled and rebuilt on `i-004e851e56d2d2024`). Container logs show a clean
+      `origin/main`, pulled and rebuilt on `<instance-id>`). Container logs show a clean
       boot straight to `politemall-mcp control-plane listening on :3000` with no
       `VersionUnsupportedError`/`VersionCheckUnreachableError`, and `/healthz` returned
       `{"ok":true}` — the startup check passed against both live tenant hosts.

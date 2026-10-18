@@ -4,7 +4,7 @@ MCP server for the Singapore polytechnic/ITE learning systems on **POLITEMall**:
 D2L Brightspace tenants **POLITEMall** and **NYP**. Talks directly to each tenant's own REST API as
 the signed-in person — no institutional API key or app registration involved.
 
-**Live server:** `https://13-212-182-50.sslip.io` — one shared server; each person signs in once with
+**Live server:** `https://<your-server-host>` — one shared server; each person signs in once with
 their own Microsoft account. The exact same server (same tools, same code) can also
 [run on your own machine](#running-it-locally).
 
@@ -133,7 +133,7 @@ your current access token, and your Microsoft sign-in state, which is deleted af
 server you trust. To delete everything and revoke every token your MCP clients hold:
 
 ```bash
-curl -X POST https://13-212-182-50.sslip.io/signout -H "Authorization: Bearer <your MCP access token>"
+curl -X POST https://<your-server-host>/signout -H "Authorization: Bearer <your MCP access token>"
 ```
 
 Sign-ins are limited to a few at a time; if the server is busy, try again in a minute.
@@ -143,7 +143,7 @@ Sign-ins are limited to a few at a time; if the server is busy, try again in a m
 ### Claude Code
 
 ```bash
-claude mcp add --transport http politemall https://13-212-182-50.sslip.io/mcp
+claude mcp add --transport http politemall https://<your-server-host>/mcp
 ```
 
 Add `--scope user` to make it available in every project, not just the current one. Then run
@@ -152,12 +152,12 @@ Add `--scope user` to make it available in every project, not just the current o
 ### Claude Desktop
 
 Settings → Connectors → **Add custom connector**, name it, and enter
-`https://13-212-182-50.sslip.io/mcp`. Claude Desktop opens the sign-in page in your browser.
+`https://<your-server-host>/mcp`. Claude Desktop opens the sign-in page in your browser.
 
 ### Microsoft Copilot Studio
 
 Your agent → **Tools** → **Add a tool** → **New tool** → **Model Context Protocol**, server URL
-`https://13-212-182-50.sslip.io/mcp`, authentication **OAuth 2.0** with dynamic discovery (the
+`https://<your-server-host>/mcp`, authentication **OAuth 2.0** with dynamic discovery (the
 server publishes its OAuth metadata and supports dynamic client registration and PKCE).
 
 ## Security notes

@@ -6,7 +6,7 @@ cloned the repo (check via SSM: `test -f /opt/politemall-mcp-bootstrap-done`),
 finish the deploy manually:
 
 1. Write `server/.env` on the instance with `PUBLIC_HOST=<ip-with-dashes>.sslip.io`
-   (e.g. `13-212-182-50.sslip.io` for IP `13.212.182.50`). **Do not use the AWS-assigned
+   (e.g. `203-0-113-10.sslip.io` for IP `203.0.113.10`). **Do not use the AWS-assigned
    `*.compute.amazonaws.com` hostname** — Let's Encrypt refuses to issue certificates
    for it (it's on the public suffix "forbidden" list). sslip.io wildcard-resolves
    `<ip-with-dashes>.sslip.io` to the IP itself and works fine with Let's Encrypt.
