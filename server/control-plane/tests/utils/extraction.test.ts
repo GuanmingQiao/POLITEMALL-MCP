@@ -83,3 +83,21 @@ test("deep links use the tenant origin and tolerate a trailing slash", () => {
   assert.equal(quizUrl("https://nyplms.polite.edu.sg", 878537, 1412126), "https://nyplms.polite.edu.sg/d2l/lms/quizzing/user/quiz_summary.d2l?qi=1412126&ou=878537");
   assert.equal(gradebookUrl("https://nyplms.polite.edu.sg", 878537), "https://nyplms.polite.edu.sg/d2l/lms/grades/my_grades/main.d2l?ou=878537");
 });
+
+test("htmlToMarkdown drops script, style and noscript, and unsafe links", () => {
+  const md = htmlToMarkdown('<style>b{}</style><script>evil()</script><noscript>no</noscript><p>Hi <a href="javascript:alert(1)">there</a></p>');
+  assert.equal(md, "Hi there");
+});
+
+test("htmlToMarkdown removes D2L session parameters from links and images", () => {
+  const md = htmlToMarkdown('<a href="https://x.example/f?id=1&d2lSessionVal=SECRET&_=123">f</a><img src="/i.png?d2lSecureSessionVal=S2" alt="pic">');
+  assert.equal(md, "[f](https://x.example/f?id=1)![pic](/i.png)");
+});
+
+test("htmlToMarkdown writes tables as pipe tables and embeds as links", () => {
+  assert.equal(
+    htmlToMarkdown("<table><tr><th>A</th><th>B|C</th></tr><tr><td>1</td><td>2</td></tr></table>"),
+    "| A | B\\|C |\n| --- | --- |\n| 1 | 2 |"
+  );
+  assert.equal(htmlToMarkdown('<iframe src="https://v.example/e" title="Video"></iframe>'), "[Video](https://v.example/e)");
+});

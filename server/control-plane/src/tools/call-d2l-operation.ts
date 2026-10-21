@@ -6,7 +6,7 @@ import { getRouteDescriptor } from "../api/route-catalog.js";
 import { callD2lOperation } from "../api/d2l-routes.js";
 import { parseCourseId } from "../api/courses.js";
 import { InvalidRouteParamsError, UnsupportedOperationError } from "../api/errors.js";
-import { READ_ONLY } from "./schemas.js";
+import { READ_ONLY, maxCharsField, offsetField } from "./schemas.js";
 import { toolResult, errorResult, explainD2lError, authFor, withRecovery } from "./helpers.js";
 
 export function registerCallD2lOperation(server: McpServer, ctx: ToolContext): void {
@@ -15,17 +15,19 @@ export function registerCallD2lOperation(server: McpServer, ctx: ToolContext): v
     {
       title: "Call D2L operation (advanced)",
       description:
-        "Invoke any cataloged D2L Valence route by its operation key — the long-tail escape hatch for routes without a dedicated tool above. Use list_d2l_operations first to find the right operation key and its parameters. Course-scoped operations need courseId (orgUnitId is derived from it automatically — never pass orgUnitId directly); global/user-scoped operations need school instead. Always read-only (GET); operations that return binary file content are rejected, not supported here.",
+        "Invoke any cataloged D2L Valence route by its operation key — the long-tail escape hatch for routes without a dedicated tool above. Use list_d2l_operations first to find the right operation key and its parameters. Course-scoped operations need courseId (orgUnitId is derived from it automatically — never pass orgUnitId directly); global/user-scoped operations need school instead. Always read-only (GET); an operation that returns a file is read as text when the file is a web page or text (HTML comes back as Markdown, in parts: pass offset to continue when truncated is true), and rejected when it is truly binary.",
       inputSchema: {
         operation: z.string().describe('The catalog operation key, from list_d2l_operations, e.g. "le.checklists.list"'),
         courseId: z.string().optional().describe("Required for course-scoped operations — the course's courseId from list_courses"),
         school: z.enum(["politemall", "nyp"]).optional().describe("Required for global/user-scoped operations that aren't tied to one course"),
         pathParams: z.record(z.unknown()).optional().describe("Path parameters the operation needs, other than orgUnitId"),
         queryParams: z.record(z.unknown()).optional().describe("Query parameters the operation accepts"),
+        maxChars: maxCharsField(),
+        offset: offsetField,
       },
       annotations: READ_ONLY,
     },
-    async ({ operation, courseId, school, pathParams, queryParams }) => {
+    async ({ operation, courseId, school, pathParams, queryParams, maxChars, offset }) => {
       const descriptor = getRouteDescriptor(operation);
       if (!descriptor) {
         return errorResult(`Unknown D2L operation "${operation}". Use list_d2l_operations to find a valid one.`);
@@ -51,7 +53,7 @@ export function registerCallD2lOperation(server: McpServer, ctx: ToolContext): v
 
       try {
         const result = await withRecovery(ctx, targetSchool, holder, (auth) =>
-          callD2lOperation(targetSchool, auth, operation, pathParams ?? {}, queryParams ?? {}, orgUnitId)
+          callD2lOperation(targetSchool, auth, operation, pathParams ?? {}, queryParams ?? {}, orgUnitId, { offset, maxChars })
         );
         // Raw passthrough: no item links, only where and when it was read.
         return toolResult({ operation, result }, [targetSchool]);

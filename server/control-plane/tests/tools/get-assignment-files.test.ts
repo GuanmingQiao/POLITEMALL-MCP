@@ -125,3 +125,16 @@ test("fileKind and extractFileText", async () => {
   assert.deepEqual(await extractFileText("text", Buffer.from("  hello  ")), { text: "hello" });
   assert.equal((await extractFileText("xlsx", makeZip([{ name: "other.txt", data: "x" }]))).text, null);
 });
+
+// spec: d2l-text-paging
+test("reading an attachment can continue from nextOffset", async (t) => {
+  const text = "line of text ".repeat(20).trim();
+  const get = async (offset: number) =>
+    (await call(t, { folderId: 1, fileId: 8, maxChars: 100, offset }, () => file(docx(text)))).body.file;
+  const first = await get(0);
+  assert.equal(first.truncated, true);
+  assert.equal(first.totalChars, text.length);
+  const second = await get(first.nextOffset);
+  assert.equal(first.text + second.text, text.slice(0, first.text.length + second.text.length));
+  assert.equal(second.text, text.slice(first.nextOffset, first.nextOffset + 100));
+});

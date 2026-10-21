@@ -12,7 +12,7 @@ import { z } from "zod";
 
 export type D2lProduct = "le" | "lp";
 export type D2lScope = "course" | "user" | "global";
-// "binary" routes return raw file bytes, not JSON — callers must not attempt to parse the body.
+// "binary" routes return a file, not JSON — callers must not attempt to parse the body as JSON. The generic tool still returns a text-like file (HTML, text) as text.
 export type D2lPagination = "none" | "objectList" | "bookmark" | "binary";
 
 export interface D2lRouteDescriptor {

@@ -14,7 +14,8 @@ import { extractPdfText } from "../utils/pdf-text.js";
 import { officeDocumentText } from "../utils/zip-text.js";
 import { assignmentUrl, link } from "../utils/deep-links.js";
 import { addSgt, containsUrl, linked, withSourceUrl } from "./provenance.js";
-import { READ_ONLY, courseIdField } from "./schemas.js";
+import { pageText } from "../utils/text-page.js";
+import { READ_ONLY, courseIdField, maxCharsField, offsetField } from "./schemas.js";
 import { runForD2LCourse } from "./helpers.js";
 
 export const MAX_DOWNLOAD_BYTES = 10 * 1024 * 1024;
@@ -80,7 +81,8 @@ export async function readAttachment(
   folderId: number,
   attachment: Attachment,
   extract: boolean,
-  maxChars: number
+  maxChars: number,
+  offset = 0
 ) {
   const base = describeAttachment(attachment);
   if (!extract) return { ...base, text: null, note: "Text extraction was not requested." };
@@ -96,8 +98,17 @@ export async function readAttachment(
   }
 
   const { text, note } = await extractFileText(base.kind, buffer);
-  const truncated = text !== null && text.length > maxChars;
-  return { ...base, bytes: buffer.length, text: truncated ? text!.slice(0, maxChars) : text, truncated, ...(note ? { note } : {}) };
+  if (text === null) return { ...base, bytes: buffer.length, text: null, truncated: false, ...(note ? { note } : {}) };
+  const page = pageText(text, offset, maxChars);
+  return {
+    ...base,
+    bytes: buffer.length,
+    text: page.text,
+    totalChars: page.totalChars,
+    truncated: page.truncated,
+    ...(page.nextOffset !== undefined ? { nextOffset: page.nextOffset } : {}),
+    ...(note ? { note } : {}),
+  };
 }
 
 export function registerGetAssignmentFiles(server: McpServer, ctx: ToolContext): void {
@@ -106,17 +117,18 @@ export function registerGetAssignmentFiles(server: McpServer, ctx: ToolContext):
     {
       title: "Get assignment files",
       description:
-        "Read the files an instructor attached to an assignment: the brief or instructions PDF, a starter workbook, a rubric document. Call it with just courseId to see which assignments have attachments (no file is opened), then again with folderId and fileId to read one — the response contains the file's text. Use this when the user asks what an assignment requires, what the instructions say, or wants a handout summarised. folderId comes from get_assignments (the assignment's id).",
+        "Read the files an instructor attached to an assignment: the brief or instructions PDF, a starter workbook, a rubric document. Call it with just courseId to see which assignments have attachments (no file is opened), then again with folderId and fileId to read one — the response contains the file's text; if it is long, truncated is true and nextOffset is the offset to pass as offset to read the next part. Use this when the user asks what an assignment requires, what the instructions say, or wants a handout summarised. folderId comes from get_assignments (the assignment's id).",
       inputSchema: {
         courseId: courseIdField,
         folderId: z.number().int().positive().optional().describe("Assignment (dropbox folder) id. Omit to list every assignment in the course that has attachments."),
         fileId: z.number().int().positive().optional().describe("Attachment file id to read. Requires folderId. Omit to list files without reading them."),
         extractText: z.boolean().optional().describe("Extract readable text (PDF, DOCX, XLSX, PPTX, plain text). Default true."),
-        maxChars: z.number().int().positive().max(100000).optional().describe("Maximum characters of text to return (default 12000). The response says whether it was truncated."),
+        maxChars: maxCharsField(12000),
+        offset: offsetField,
       },
       annotations: READ_ONLY,
     },
-    async ({ courseId, folderId, fileId, extractText, maxChars }) =>
+    async ({ courseId, folderId, fileId, extractText, maxChars, offset }) =>
       runForD2LCourse(ctx, courseId, async (school, cookie, id) => {
         const base = schoolBaseUrl(school);
         if (fileId !== undefined && folderId === undefined) throw new Error("folderId is required when fileId is given.");
@@ -134,7 +146,7 @@ export function registerGetAssignmentFiles(server: McpServer, ctx: ToolContext):
               `No attachment with id ${fileId} on assignment "${folder.Name}". Available: ${(folder.Attachments ?? []).map((a) => `${a.FileId} (${a.FileName})`).join(", ") || "none"}.`
             );
           }
-          const file = await readAttachment(school, cookie, id, folder.Id, attachment, extractText ?? true, maxChars ?? 12000);
+          const file = await readAttachment(school, cookie, id, folder.Id, attachment, extractText ?? true, maxChars ?? 12000, offset ?? 0);
           return linked(
             { courseId, folderId: folder.Id, folderName: folder.Name, url: assignmentUrl(base, id, folder.Id), file },
             { pageUrl: link.assignment(school, id, folder.Id), untrusted: containsUrl(JSON.stringify(file)) }

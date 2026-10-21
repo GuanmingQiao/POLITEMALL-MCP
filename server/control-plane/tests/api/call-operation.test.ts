@@ -89,11 +89,24 @@ test("callD2lOperation: bookmark pagination is followed across pages", async (t)
   assert.match(seen[1], /bookmark=abc/);
 });
 
-test("callD2lOperation: a binary-returning operation is rejected outright, without touching the network", async (t) => {
-  const calls = mockFetch(t, []);
+function fileResponse(body: Buffer | string, contentType: string): Response {
+  return new Response(new Uint8Array(Buffer.from(body)), { status: 200, headers: { "content-type": contentType } });
+}
+
+// spec: d2l-mcp-tool-surface - "Text responses from file routes are readable through the generic operation tool"
+test("callD2lOperation: a file route that returns an HTML page comes back as paged Markdown", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => fileResponse("<html><body><script>x()</script><h1>Syllabus</h1><p>Week 1</p></body></html>", "text/html"));
+  const result = (await callD2lOperation("politemall", "cookie", "le.content.topicFile", { topicId: 1 }, {}, 6606, { maxChars: 12 })) as Record<string, unknown>;
+  assert.equal(result.text, "# Syllabus\n\n");
+  assert.equal(result.truncated, true);
+  assert.equal(result.nextOffset, 12);
+  assert.equal(result.contentType, "text/html");
+});
+
+test("callD2lOperation: a file route that returns true binary content is still rejected", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => fileResponse(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 1]), "image/png"));
   await assert.rejects(
     () => callD2lOperation("politemall", "cookie", "le.content.topicFile", { topicId: 1 }, {}, 6606),
     UnsupportedOperationError
   );
-  assert.equal(calls.length, 0);
 });

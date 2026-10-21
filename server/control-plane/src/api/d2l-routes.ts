@@ -1,6 +1,8 @@
 import type { D2LSchool } from "../types/schools.js";
 import { getRouteDescriptor } from "./route-catalog.js";
-import { apiGet, versionedPath } from "./d2l-client.js";
+import { apiGet, apiGetFile, versionedPath } from "./d2l-client.js";
+import { textLikeContent } from "../utils/file-text.js";
+import { pageText } from "../utils/text-page.js";
 import { fetchAllPages, fetchAllBookmarkPages } from "./paginate.js";
 import { UnknownOperationError, InvalidRouteParamsError, UnsupportedOperationError } from "./errors.js";
 
@@ -63,6 +65,8 @@ export function resolveD2lQuery(operation: string, queryParams: Record<string, u
   return serialized ? `?${serialized}` : "";
 }
 
+const MAX_TEXT_FILE_BYTES = 25 * 1024 * 1024;
+
 // The catalog-driven dispatch behind call_d2l_operation. Unlike every curated tool, this returns
 // the D2L response raw/unshaped — see design.md Decision 3.
 export async function callD2lOperation(
@@ -71,16 +75,24 @@ export async function callD2lOperation(
   operation: string,
   pathParams: Record<string, unknown>,
   queryParams: Record<string, unknown>,
-  orgUnitId?: number
+  orgUnitId?: number,
+  paging: { offset?: number; maxChars?: number } = {}
 ): Promise<unknown> {
   const descriptor = getRouteDescriptor(operation);
   if (!descriptor) {
     throw new UnknownOperationError(`Unknown D2L operation "${operation}"`);
   }
   if (descriptor.pagination === "binary") {
-    throw new UnsupportedOperationError(
-      `Operation "${operation}" returns binary file content, which call_d2l_operation cannot return as text.`
-    );
+    // A file route can still answer with a web page or text (a topic whose file is HTML): that is
+    // returned as text, paged. Anything else is genuinely binary and is refused.
+    const { bytes, contentType } = await apiGetFile(school, resolveD2lPath(operation, pathParams, orgUnitId) + resolveD2lQuery(operation, queryParams), cookieHeader, MAX_TEXT_FILE_BYTES);
+    const text = textLikeContent(bytes, contentType);
+    if (text === null) {
+      throw new UnsupportedOperationError(
+        `Operation "${operation}" returned binary file content (${contentType || "unknown type"}), which call_d2l_operation cannot return as text.`
+      );
+    }
+    return { contentType, ...pageText(text, paging.offset, paging.maxChars) };
   }
 
   const path = resolveD2lPath(operation, pathParams, orgUnitId) + resolveD2lQuery(operation, queryParams);

@@ -29,7 +29,7 @@ course belongs to, so just pass it through as-is to the other tools.
 | `get_recent_updates` | Counts of unread/pending activity (discussions, feedback, quizzes) across every course and connected school — a "what's new" feed |
 | `get_my_calendar_events` | Your calendar events across every course and connected school in one call, within a date window (default: 7 days ago to 60 days ahead) |
 | `get_course_content` | The course's module/topic tree — one call — with `typeFilter` (file/link/html/video), `moduleTitle` and `maxDepth` to keep it small; rich text as Markdown |
-| `get_content_topic` | Metadata for a single content topic — a drill-down from `get_course_content`; for a PDF or DOCX file topic it also returns the file's text as `extractedText` (or `extractedTextUnavailable` if it is too large or unreadable) |
+| `get_content_topic` | A single content topic — a drill-down from `get_course_content`; for a PDF, DOCX, PPTX, HTML or text file topic it also returns the file's text as `extractedText` (HTML as Markdown), and a native page's description as `descriptionMarkdown`. Long text comes in parts: `maxChars` (default 20000) and `offset`, with `extractedTextTruncated` / `extractedTextNextOffset` saying how to continue (`extractedTextUnavailable` if the file is too large or unreadable) |
 | `get_course_overview` | The course description/overview content (the "Class Overview"/syllabus) |
 | `get_grades` | Grade items and your scores |
 | `get_my_final_grade` | Your calculated/adjusted final grade for a course |
@@ -69,7 +69,7 @@ need.
 | Tool | What it does |
 |---|---|
 | `list_d2l_operations` | Search/browse the full route catalog by category or keyword, to find an operation's key and required parameters |
-| `call_d2l_operation` | Invoke any cataloged operation by key — returns D2L's raw JSON response, unshaped. Course-scoped operations take `courseId`; operations not tied to one course take `school` instead. Read-only; routes that return binary file content are rejected |
+| `call_d2l_operation` | Invoke any cataloged operation by key — returns D2L's raw JSON response, unshaped. Course-scoped operations take `courseId`; operations not tied to one course take `school` instead. Read-only; a file route that returns a web page or text is read as text (HTML as Markdown, paged with `maxChars` / `offset`), and truly binary content is rejected |
 
 **POLITEMall public catalog** — a third, separate system again: the marketing
 site at `politemall.polite.edu.sg`, not Brightspace. No login required.

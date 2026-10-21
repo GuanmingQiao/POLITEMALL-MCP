@@ -94,7 +94,7 @@ export class FileTooLargeError extends Error {
 
 // Downloads a binary body (e.g. an assignment attachment) into memory, never more than maxBytes:
 // the declared Content-Length is checked first and the stream is cut off if it lies.
-export async function apiGetBuffer(school: D2LSchool, path: string, cookieHeader: string, maxBytes: number): Promise<Buffer> {
+export async function apiGetFile(school: D2LSchool, path: string, cookieHeader: string, maxBytes: number): Promise<{ bytes: Buffer; contentType: string }> {
   const resolvedPath = await withVersion(school, path);
   const res = await fetch(`https://${SCHOOL_HOSTS[school]}${resolvedPath}`, {
     headers: { ...authHeaders(cookieHeader), Accept: "*/*" },
@@ -107,7 +107,8 @@ export async function apiGetBuffer(school: D2LSchool, path: string, cookieHeader
     await res.body?.cancel();
     throw new FileTooLargeError(maxBytes, declared);
   }
-  if (!res.body) return Buffer.alloc(0);
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!res.body) return { bytes: Buffer.alloc(0), contentType };
 
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -122,5 +123,9 @@ export async function apiGetBuffer(school: D2LSchool, path: string, cookieHeader
     }
     chunks.push(value);
   }
-  return Buffer.concat(chunks);
+  return { bytes: Buffer.concat(chunks), contentType };
+}
+
+export async function apiGetBuffer(school: D2LSchool, path: string, cookieHeader: string, maxBytes: number): Promise<Buffer> {
+  return (await apiGetFile(school, path, cookieHeader, maxBytes)).bytes;
 }
