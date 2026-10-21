@@ -21,7 +21,21 @@ services:
     # runaway browser cannot take the host down, and give Chromium the shared memory it needs.
     mem_limit: 1400m
     shm_size: 512m
+    # Unprivileged: non-root, no capabilities, no privilege escalation, read-only root filesystem.
+    # Only /data (sessions, OAuth) and /tmp (Chromium's profile) are writable. The seccomp profile
+    # is Docker's default plus the namespace syscalls Chromium's own sandbox needs; see README.md.
+    # Fallback if the host cannot give Chromium user namespaces: add CHROMIUM_NO_SANDBOX=1 below.
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./chromium-seccomp.json
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
+      - HOME=/tmp
       - PORT=3000
       - AWS_REGION=ap-southeast-1
       - MASTER_KEY_SECRET_ID=politemall-mcp/master-key

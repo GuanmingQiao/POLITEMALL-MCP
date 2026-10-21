@@ -1,7 +1,9 @@
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
+import { chromium, type Browser, type BrowserContext, type Page, type Route } from "playwright-core";
 import { SCHOOL_HOSTS } from "../api/d2l-client.js";
 import type { D2LSchool } from "../types/schools.js";
 import { config } from "../utils/config.js";
+import { auditLog } from "../utils/audit-log.js";
+import { decideRequest } from "./net-policy.js";
 import type { ReloginResult } from "./d2l-session.js";
 import { hasNewerMicrosoftState, parseBrowserState } from "./microsoft-state.js";
 import { browserStateStatus, getBrowserState, saveBrowserState, touchBrowserState, type SchoolSession } from "./session-vault.js";
@@ -49,9 +51,35 @@ export interface LaunchedBrowser {
   close(): Promise<void>;
 }
 
-export async function launchBrowser(storageState?: string): Promise<LaunchedBrowser> {
+// Chromium's own sandbox is on unless the operator opts out with CHROMIUM_NO_SANDBOX=1.
+export function sandboxDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.CHROMIUM_NO_SANDBOX === "1";
+}
+
+export function chromiumArgs(env: NodeJS.ProcessEnv = process.env): string[] {
   const args = ["--disable-dev-shm-usage", "--disable-gpu", "--no-first-run", "--disable-extensions"];
-  if (process.env.CHROMIUM_NO_SANDBOX === "1") args.push("--no-sandbox");
+  if (sandboxDisabled(env)) args.push("--no-sandbox");
+  return args;
+}
+
+const MAX_NET_HOSTS = 20;
+
+// Hosts the browser may navigate to: the school hosts (so tests and the real tenants share one
+// source) plus, in the policy itself, Microsoft's sign-in hosts.
+function schoolHosts(): string[] {
+  const hosts: string[] = [];
+  for (const o of Object.values(origins)) {
+    try {
+      hosts.push(new URL(o).hostname.toLowerCase());
+    } catch {
+      // not a URL; ignore
+    }
+  }
+  return hosts;
+}
+
+export async function launchBrowser(storageState?: string): Promise<LaunchedBrowser> {
+  const args = chromiumArgs();
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined, args });
   try {
     const context = await browser.newContext({
@@ -59,6 +87,67 @@ export async function launchBrowser(storageState?: string): Promise<LaunchedBrow
       storageState: storageState ? JSON.parse(storageState) : undefined,
       locale: "en-SG",
       timezoneId: "Asia/Singapore",
+      acceptDownloads: false,
+      serviceWorkers: "block",
+      permissions: [],
+    });
+    // Network policy (see net-policy.ts). Only host names are counted, never URLs or content.
+    const allowed = schoolHosts();
+    const reportOnly = process.env.SIGNIN_NET_MODE === "report";
+    const blocked = new Map<string, number>();
+    const reported = new Map<string, number>();
+    const count = (table: Map<string, number>, host: string) => {
+      if (table.has(host) || table.size < MAX_NET_HOSTS) table.set(host, (table.get(host) ?? 0) + 1);
+    };
+    const hostOf = (url: string): string => {
+      try {
+        return new URL(url).hostname || new URL(url).protocol;
+      } catch {
+        return "invalid";
+      }
+    };
+    // An empty 204 answer to a navigation is not committed, so the browser stays on the page it
+    // was on; an aborted navigation would replace it with an error page.
+    const refuse = async (route: Route, navigation: boolean) => {
+      if (navigation) await route.fulfill({ status: 204 }).catch(() => undefined);
+      else await route.abort("blockedbyclient").catch(() => undefined);
+    };
+    await context.route("**/*", async (route) => {
+      const request = route.request();
+      const url = request.url();
+      const navigation = request.isNavigationRequest();
+      const decision = decideRequest(url, navigation, allowed);
+      if (decision === "block" && !reportOnly) {
+        count(blocked, hostOf(url));
+        return void (await refuse(route, navigation));
+      }
+      if (decision !== "allow") count(reported, hostOf(url));
+      if (!navigation) return void route.continue().catch(() => undefined);
+      // Chromium follows redirects without asking again, so a navigation is fetched here one hop
+      // at a time: the redirect target is judged before the browser is allowed to follow it.
+      try {
+        const response = await route.fetch({ maxRedirects: 0 });
+        const location = response.status() >= 300 && response.status() < 400 ? response.headers()["location"] : undefined;
+        if (location) {
+          let target = "";
+          try {
+            target = new URL(location, url).href;
+          } catch {
+            // unusable Location; the browser will fail it
+          }
+          if (target) {
+            const hop = decideRequest(target, true, allowed);
+            if (hop === "block" && !reportOnly) {
+              count(blocked, hostOf(target));
+              return void (await refuse(route, true));
+            }
+            if (hop !== "allow") count(reported, hostOf(target));
+          }
+        }
+        await route.fulfill({ response });
+      } catch {
+        await route.abort("failed").catch(() => undefined);
+      }
     });
     // This browser has no authenticator, so a passkey / security-key prompt can never be answered
     // and Microsoft would wait on it forever. Present the browser as not supporting WebAuthn so
@@ -88,6 +177,9 @@ export async function launchBrowser(storageState?: string): Promise<LaunchedBrow
         if (closed) return;
         closed = true;
         await browser.close().catch(() => undefined);
+        if (blocked.size > 0 || reported.size > 0) {
+          auditLog("signin_net_summary", { blocked: Object.fromEntries(blocked), reported: Object.fromEntries(reported) });
+        }
       },
     };
   } catch (err) {

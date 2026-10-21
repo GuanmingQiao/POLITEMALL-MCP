@@ -6,7 +6,7 @@ import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middlew
 import { config } from "./utils/config.js";
 import { buildMcpServer } from "./server.js";
 import { auditLog } from "./utils/audit-log.js";
-import { rateLimitByToken } from "./auth/rate-limit.js";
+import { clientIp, rateLimitByToken } from "./auth/rate-limit.js";
 import { createUserContext } from "./auth/session-context.js";
 import { PolitemallOAuthProvider, signOutUser } from "./auth/oauth-provider.js";
 import { signinPage } from "./auth/signin-stream.js";
@@ -36,7 +36,7 @@ export function buildApp(provider = new PolitemallOAuthProvider()): express.Expr
     })
   );
 
-  app.get("/signin/:id", rateLimitByToken((req) => `ip:${req.ip}`), signinPage);
+  app.get("/signin/:id", rateLimitByToken((req) => `ip:${clientIp(req)}`), signinPage);
 
   const requireUser = requireBearerAuth({ verifier: provider, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(resourceServerUrl) });
   const perUserLimit = rateLimitByToken((req) => (req.auth?.extra?.userId as string | undefined));

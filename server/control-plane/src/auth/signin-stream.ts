@@ -8,6 +8,8 @@ import { auditLog } from "../utils/audit-log.js";
 import { checkSignin, getSignin, type LinkRefusal, type PendingSignin, type SigninOutcome } from "./signin-registry.js";
 import { SigninSession, type SigninDeps, type SigninIo } from "./signin-session.js";
 import { VIEWPORT } from "./signin-browser.js";
+import { clientIp } from "./rate-limit.js";
+import { checkStart, clearStrikes, recordStrike, refusalMessage, resetStartLimitsForTests } from "./start-limits.js";
 
 // The two entry points of a streamed sign-in: the page the person opens (GET /signin/:id) and the
 // WebSocket that carries screencast frames out and pointer/keyboard events in
@@ -126,6 +128,8 @@ interface Live {
   session: SigninSession;
   ws?: WebSocket;
   lastStatus?: string;
+  // The client IP that started this sign-in, for the start budget and strikes.
+  ip: string;
   grace?: NodeJS.Timeout;
 }
 const lives = new Map<string, Live>();
@@ -190,11 +194,23 @@ export function attachSigninSockets(server: Server, deps?: SigninDeps): void {
     if (!sameOrigin(req)) return refuse();
     // One viewer at a time: a second connection must not take over a sign-in someone is watching.
     if (live && attached(live)) return refuse("in_use");
-    wss.handleUpgrade(req, socket, head, (ws) => serve(ws, match[1], deps));
+    const ip = clientIp(req);
+    // Starting a browser is what costs; reattaching to a running one is not a start.
+    const starting = !live && "signin" in checked && checked.signin.state === "open" ? checkStart(ip) : undefined;
+    if (starting) {
+      auditLog("signin_rate_limited", { kind: starting.kind });
+      // Accept the socket and say why, so the page shows it and does not keep reconnecting.
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "fail", reason: refusalMessage(starting) }));
+        ws.close();
+      });
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => serve(ws, match[1], ip, deps));
   });
 }
 
-function serve(ws: WebSocket, id: string, deps?: SigninDeps): void {
+function serve(ws: WebSocket, id: string, ip: string, deps?: SigninDeps): void {
   const signin = getSignin(id);
   if (!signin) {
     ws.close();
@@ -213,11 +229,13 @@ function serve(ws: WebSocket, id: string, deps?: SigninDeps): void {
     if (live.lastStatus) ws.send(JSON.stringify({ type: "status", message: live.lastStatus }));
     void live.session.attach(viewerIo(signin, live));
   } else if (signin.state === "open") {
-    const created: Live = { ws, session: undefined as unknown as SigninSession };
+    const created: Live = { ip, ws, session: undefined as unknown as SigninSession };
     created.session = new SigninSession(signin, viewerIo(signin, created), deps);
     lives.set(id, created);
     live = created;
     void created.session.run().finally(() => {
+      if (created.session.endReason === "done") clearStrikes(created.ip);
+      else if (created.session.endReason === "timeout" || created.session.endReason === "no_input") recordStrike(created.ip);
       if (signin.state !== "running") {
         clearTimeout(created.grace);
         lives.delete(id);
@@ -253,6 +271,7 @@ function serve(ws: WebSocket, id: string, deps?: SigninDeps): void {
       if (current.ws || signin.state !== "running") return;
       signin.failure = "viewer_left";
       auditLog("signin_failed", { reason: "viewer_left" });
+      recordStrike(current.ip);
       void current.session.stop();
       lives.delete(id);
     }, config.signinReattachGraceMs);
@@ -262,6 +281,7 @@ function serve(ws: WebSocket, id: string, deps?: SigninDeps): void {
 
 // Tests drop every live sign-in between cases.
 export function resetSigninStreamForTests(): void {
+  resetStartLimitsForTests();
   for (const live of lives.values()) clearTimeout(live.grace);
   lives.clear();
 }

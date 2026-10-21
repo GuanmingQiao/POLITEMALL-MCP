@@ -7,6 +7,13 @@ import { configureD2lSession } from "./auth/d2l-session.js";
 import { silentRelogin } from "./auth/signin-browser.js";
 import { attachSigninSockets } from "./auth/signin-stream.js";
 import { startKeepAlive } from "./auth/keep-alive.js";
+import { sandboxDisabled } from "./auth/signin-browser.js";
+import { checkDataDirs } from "./utils/boot-check.js";
+
+// A data directory the service cannot read or write would look like every user being signed out,
+// so refuse to start instead.
+checkDataDirs([config.sessionFile, config.oauthFile, config.storeFile]);
+console.log(`chromium_sandbox ${sandboxDisabled() ? "disabled" : "enabled"}`);
 
 await loadMasterKey();
 // Resolve each D2L tenant's latest LE/LP API version up front so problems show in the boot log.

@@ -21,12 +21,45 @@ container needs about 1.4 GB for Chromium during a sign-in (`mem_limit`/`shm_siz
 All of this was done interactively via `aws ssm send-command` (no SSH — the security
 group has no port 22; management is via SSM Session Manager / Run Command only).
 
+## Upgrading to the unprivileged container
+
+The control-plane now runs as uid 1000 in a read-only container (see `server/README.md`). Files in
+`server/data` were created by root, so give them to uid 1000 before starting the new image. The
+service refuses to start, with a clear message, if it cannot read and write that directory.
+
+```
+cd /opt/politemall-mcp/server
+sudo cp -a data data.bak-$(date +%F)          # backup
+git pull
+sudo chown -R 1000:1000 data
+docker compose build --pull && docker compose up -d
+docker compose exec control-plane id          # uid=1000(node)
+docker compose logs control-plane | grep chromium_sandbox   # enabled (or disabled on the fallback)
+```
+
+Then do a real sign-in (answering "Stay signed in?") and check `docker compose logs control-plane`
+for `signin_net_summary`: `blocked` lists hosts that were refused, `reported` lists other public
+hosts the page used. Extend the allowlist in `src/auth/net-policy.ts` for any legitimate Microsoft or
+school host that was blocked; `SIGNIN_NET_MODE=report` is the break-glass while you do.
+
+Rollback: check out the previous commit and rebuild. The old image runs as root and can read files
+owned by uid 1000; run the `chown` again before going forward once more.
+
+The abuse limits (`SIGNIN_FIRST_INPUT_MS`, `SIGNIN_STARTS_PER_WINDOW`, `SIGNIN_START_WINDOW_MS`,
+`SIGNIN_STRIKES_BEFORE_PAUSE`, `SIGNIN_PAUSE_MS`, `SIGNIN_MAX_PENDING_PER_IP`,
+`SIGNIN_MAX_PENDING`) and `SIGNIN_NET_MODE` are described in `server/README.md`. Look for
+`signin_rate_limited` (kind `start`, `paused`, `pending_ip`, `pending_total`) and
+`signin_failed` with reason `no_input` in the logs.
+
 ## Redeploying after a code change
 
 ```
 cd /opt/politemall-mcp && git pull
-cd server && docker compose up -d --build
+cd server && docker compose build --pull && docker compose up -d
 ```
+
+`--pull` refreshes the Node base image and the Debian Chromium package, so each deploy picks up
+published security fixes.
 
 **D2L API versions are discovered, not pinned.** The server reads each school host's
 anonymous `/d2l/api/versions/` list (see `server/control-plane/src/api/d2l-versions.ts`) and uses the newest supported

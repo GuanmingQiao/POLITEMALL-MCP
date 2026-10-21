@@ -462,3 +462,98 @@ test("the streamed browser reports no passkey support, so Microsoft offers a met
     await b.close();
   }
 });
+
+// spec: signin-browser-hardening — abuse limits at the WebSocket.
+test("limits: a refused start says why, launches no browser, and leaves the link usable", async () => {
+  registry.resetSigninRegistryForTests();
+  resetSigninStreamForTests();
+  const saved = config.signinStartsPerWindow;
+  config.signinStartsPerWindow = 0;
+  const lines: string[] = [];
+  const realLog = console.log;
+  console.log = (...a: unknown[]) => void lines.push(a.map(String).join(" "));
+  try {
+    const s = registry.createSignin();
+    const ws = await open(s.id);
+    const w = watchers.get(ws)!;
+    assert.ok(await w.until(() => w.events.some((e) => e.type === "fail")));
+    assert.match(String(w.events.find((e) => e.type === "fail")!.reason), /Too many sign-in attempts.*Try again/);
+    assert.equal(w.frames(), 0);
+    assert.equal(browser.activeBrowserCount(), 0, "no browser was started");
+    assert.equal(registry.getOpenSignin(s.id)?.state, "open", "the link is not used up by a refused start");
+    assert.ok(lines.some((l) => l.includes('"signin_rate_limited"') && l.includes('"kind":"start"')));
+  } finally {
+    console.log = realLog;
+    config.signinStartsPerWindow = saved;
+    resetSigninStreamForTests();
+  }
+});
+
+test("limits: an idle viewer's browser is closed after the first-input time and the slot freed", { skip: !HAVE_BROWSER && "no Chromium installed", timeout: 60_000 }, async () => {
+  registry.resetSigninRegistryForTests();
+  resetSigninStreamForTests();
+  const saved = config.signinFirstInputMs;
+  config.signinFirstInputMs = 1500;
+  try {
+    const s = registry.createSignin();
+    const ws = await open(s.id);
+    const w = watchers.get(ws)!;
+    assert.ok(await w.until(() => w.frames() > 0));
+    assert.equal(browser.activeBrowserCount(), 1);
+    assert.ok(await w.until(() => w.events.some((e) => e.type === "fail" && /No input received/.test(String(e.reason))), 15_000));
+    assert.ok(await w.until(() => browser.activeBrowserCount() === 0, 10_000), "slot freed");
+    assert.equal(registry.getSignin(s.id)?.failure, "no_input");
+  } finally {
+    config.signinFirstInputMs = saved;
+    resetSigninStreamForTests();
+  }
+});
+
+test("limits: a viewer who types in time is not cut off by the first-input timer", { skip: !HAVE_BROWSER && "no Chromium installed", timeout: 60_000 }, async () => {
+  registry.resetSigninRegistryForTests();
+  resetSigninStreamForTests();
+  const saved = config.signinFirstInputMs;
+  config.signinFirstInputMs = 4000;
+  try {
+    const s = registry.createSignin();
+    const ws = await open(s.id);
+    const w = watchers.get(ws)!;
+    assert.ok(await w.until(() => w.frames() > 0));
+    send(ws, { t: "mouse", type: "move", x: 10, y: 10 });
+    await new Promise((r) => setTimeout(r, 6000));
+    assert.ok(!w.events.some((e) => e.type === "fail"), "still running after the first-input time");
+    assert.equal(browser.activeBrowserCount(), 1);
+    ws.close();
+  } finally {
+    config.signinFirstInputMs = saved;
+  }
+});
+
+test("limits: authorize answers 429 once the open-link cap is reached", async () => {
+  registry.resetSigninRegistryForTests();
+  const saved = config.signinMaxPendingPerIp;
+  config.signinMaxPendingPerIp = 1;
+  try {
+    const { PolitemallOAuthProvider } = await import("../../src/auth/oauth-provider.js");
+    const p = new PolitemallOAuthProvider();
+    const client = await p.clientsStore.registerClient({ redirect_uris: ["http://client.example/cb"], token_endpoint_auth_method: "none" } as never);
+    const call = async () => {
+      const out: { status?: number; redirected?: string; body?: string } = {};
+      const res = {
+        req: { headers: {}, socket: { remoteAddress: "7.7.7.7" } },
+        redirect: (u: string) => void (out.redirected = u),
+        status(c: number) { out.status = c; return this; },
+        type() { return this; },
+        send(b: string) { out.body = b; return this; },
+      };
+      await p.authorize(client, { codeChallenge: "c", redirectUri: "http://client.example/cb" } as never, res as never);
+      return out;
+    };
+    assert.ok((await call()).redirected, "first link issued");
+    const second = await call();
+    assert.equal(second.status, 429);
+    assert.match(second.body ?? "", /Too many sign-in links/);
+  } finally {
+    config.signinMaxPendingPerIp = saved;
+  }
+});

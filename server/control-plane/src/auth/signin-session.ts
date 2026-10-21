@@ -59,12 +59,16 @@ export class SigninSession {
   private finished = false;
   private inputWindowStart = 0;
   private inputCount = 0;
+  private firstInputTimer?: NodeJS.Timeout;
+  // How the sign-in ended, for the stream layer's per-IP accounting.
+  endReason?: "done" | "timeout" | "no_input" | "failed";
 
   constructor(
     private readonly signin: PendingSignin,
     private io: SigninIo,
     private readonly deps: SigninDeps = defaultDeps,
-    private readonly overall = config.signinTimeoutMs
+    private readonly overall = config.signinTimeoutMs,
+    private readonly firstInputMs = config.signinFirstInputMs
   ) {}
 
   // Starts the browser and runs until the sign-in succeeds, fails or times out.
@@ -89,11 +93,16 @@ export class SigninSession {
       });
       await this.cdp.send("Page.startScreencast", { format: "jpeg", quality: 55, maxWidth: VIEWPORT.width, maxHeight: VIEWPORT.height, everyNthFrame: 1 });
       this.io.status("Sign in with your Microsoft account.");
+      this.firstInputTimer = setTimeout(() => void this.noInput(), this.firstInputMs);
+      this.firstInputTimer.unref?.();
 
       await page.goto(`${origins.politemall}/d2l/home`, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
       const sessions = await this.waitForSessions();
       if (this.finished) return;
-      if (sessions.size === 0) throw new Error("The sign-in did not finish in time.");
+      if (sessions.size === 0) {
+        this.endReason = "timeout";
+        throw new Error("The sign-in did not finish in time.");
+      }
 
       const userId = this.signin.userId ?? (await createUser());
       for (const [school, session] of sessions) await saveSchoolSession(userId, school, session);
@@ -109,10 +118,12 @@ export class SigninSession {
       // Recorded before the browser is closed, so a viewer who reconnects at this moment is still told.
       this.signin.outcome = { type: "done", redirect, notice };
       auditLog("signin_ok", { schools: [...sessions.keys()], persistent });
+      this.endReason = "done";
       await this.stop();
       this.io.done(redirect, notice);
     } catch (err) {
       const reason = err instanceof Error ? err.message : "The sign-in failed.";
+      this.endReason ??= "failed";
       this.signin.state = "failed";
       this.signin.failure = reason;
       this.signin.outcome = { type: "fail", reason };
@@ -160,6 +171,19 @@ export class SigninSession {
     return found;
   }
 
+  // No accepted input arrived in time: close the browser and free the slot.
+  private async noInput(): Promise<void> {
+    if (this.finished) return;
+    const reason = "No input received, so the sign-in was closed. Ask for a new sign-in link to try again.";
+    this.endReason = "no_input";
+    this.signin.state = "failed";
+    this.signin.failure = "no_input";
+    this.signin.outcome = { type: "fail", reason };
+    auditLog("signin_failed", { reason: "no_input" });
+    await this.stop();
+    this.io.fail(reason);
+  }
+
   // A viewer (re)connected: send everything from now on to `io` and redraw the current page at
   // once. Frames, status and the outcome that arrive while nobody is attached go to whatever `io`
   // was last attached, which the stream layer makes a holder.
@@ -199,6 +223,7 @@ export class SigninSession {
         const x = num(m.x, 0, VIEWPORT.width);
         const y = num(m.y, 0, VIEWPORT.height);
         if (!type || x === undefined || y === undefined) return;
+        this.acceptedInput();
         await cdp.send("Input.dispatchMouseEvent", {
           type, x, y,
           button: m.button === 2 ? "right" : m.button === 1 ? "middle" : type === "mouseMoved" || type === "mouseWheel" ? "none" : "left",
@@ -210,6 +235,7 @@ export class SigninSession {
         const printable = m.key.length === 1 && !m.ctrl && !m.meta;
         const code = KEY_CODES[m.key];
         if (!printable && code === undefined) return;
+        this.acceptedInput();
         const modifiers = (m.alt ? 1 : 0) | (m.ctrl ? 2 : 0) | (m.meta ? 4 : 0) | (m.shift ? 8 : 0);
         await cdp.send("Input.dispatchKeyEvent", {
           type: printable || m.key === "Enter" ? "keyDown" : "rawKeyDown",
@@ -220,6 +246,7 @@ export class SigninSession {
         });
         await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: m.key, windowsVirtualKeyCode: code, modifiers });
       } else if (m.t === "text" && typeof m.text === "string" && m.text.length > 0 && m.text.length <= 512) {
+        this.acceptedInput();
         await cdp.send("Input.insertText", { text: m.text });
       }
     } catch {
@@ -227,9 +254,15 @@ export class SigninSession {
     }
   }
 
+  private acceptedInput(): void {
+    clearTimeout(this.firstInputTimer);
+    this.firstInputTimer = undefined;
+  }
+
   // Ends the browser session and releases its slot. Safe to call more than once.
   async stop(): Promise<void> {
     this.finished = true;
+    clearTimeout(this.firstInputTimer);
     await this.cdp?.send("Page.stopScreencast").catch(() => undefined);
     await this.launched?.close();
     this.launched = undefined;

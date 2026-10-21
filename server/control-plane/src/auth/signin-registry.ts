@@ -21,6 +21,9 @@ export interface PendingSignin {
   // Set for a re-sign-in of a known person; absent for a first sign-in, where the person is
   // created only once the sign-in has actually succeeded.
   userId?: string;
+  // The client IP that asked for an anonymous link (from /authorize); absent for links made for a
+  // known person, which are not counted against the open-link caps.
+  createdByIp?: string;
   createdAt: number;
   expiresAt: number;
   state: "open" | "running" | "done" | "failed";
@@ -43,11 +46,12 @@ function sweep(now: number): void {
   }
 }
 
-export function createSignin(opts: { userId?: string; onSuccess?: PendingSignin["onSuccess"] } = {}, now = Date.now()): PendingSignin {
+export function createSignin(opts: { userId?: string; ip?: string; onSuccess?: PendingSignin["onSuccess"] } = {}, now = Date.now()): PendingSignin {
   sweep(now);
   const signin: PendingSignin = {
     id: randomBytes(24).toString("base64url"),
     userId: opts.userId,
+    createdByIp: opts.userId ? undefined : opts.ip,
     onSuccess: opts.onSuccess,
     createdAt: now,
     expiresAt: now + config.signinLinkTtlMs,
@@ -55,6 +59,21 @@ export function createSignin(opts: { userId?: string; onSuccess?: PendingSignin[
   };
   pending.set(signin.id, signin);
   return signin;
+}
+
+// Why another anonymous link may not be issued to this IP right now, or undefined. Only open,
+// unexpired, never-started links without a known person count.
+export function anonymousLinkCap(ip: string, now = Date.now()): "pending_ip" | "pending_total" | undefined {
+  let total = 0;
+  let mine = 0;
+  for (const p of pending.values()) {
+    if (p.userId || p.state !== "open" || p.expiresAt <= now) continue;
+    total++;
+    if (p.createdByIp === ip) mine++;
+  }
+  if (mine >= config.signinMaxPendingPerIp) return "pending_ip";
+  if (total >= config.signinMaxPending) return "pending_total";
+  return undefined;
 }
 
 export function signinUrl(signin: PendingSignin): string {

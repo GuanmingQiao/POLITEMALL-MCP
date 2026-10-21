@@ -8,8 +8,10 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { InvalidGrantError, InvalidTokenError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { OAuthClientInformationFull, OAuthTokenRevocationRequest, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { config } from "../utils/config.js";
+import { auditLog } from "../utils/audit-log.js";
+import { clientIp } from "./rate-limit.js";
 import { userExists, deleteUser } from "./session-vault.js";
-import { createSignin, signinUrl } from "./signin-registry.js";
+import { anonymousLinkCap, createSignin, signinUrl } from "./signin-registry.js";
 
 // The server's own OAuth authorization server, as seen by MCP clients (Claude Code, Claude
 // Desktop). Its "log the user in" step is the streamed sign-in page: authorize() sends the person
@@ -120,7 +122,15 @@ export class PolitemallOAuthProvider implements OAuthServerProvider {
   readonly skipLocalPkceValidation = true;
 
   async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
+    const ip = clientIp(res.req);
+    const capped = anonymousLinkCap(ip);
+    if (capped) {
+      auditLog("signin_rate_limited", { kind: capped });
+      res.status(429).type("text/plain").send("Too many sign-in links are open right now. Please wait a few minutes and try again.");
+      return;
+    }
     const signin = createSignin({
+      ip,
       onSuccess: async (userId) => {
         const code = randomBytes(32).toString("base64url");
         codes.set(code, { userId, clientId: client.client_id, codeChallenge: params.codeChallenge, redirectUri: params.redirectUri, expiresAt: Date.now() + CODE_TTL_MS });
