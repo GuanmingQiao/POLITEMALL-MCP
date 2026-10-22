@@ -8,3 +8,6 @@ server/control-plane/node_modules/
 server/control-plane/.test-build/
 server/control-plane/data/
 test-oracle/
+
+# Claude Code: personal settings stay local
+.claude/settings.local.json
