@@ -211,3 +211,7 @@ keeps encrypted sessions there. It needs a Chromium for the streamed sign-in: se
 client the same way as above; the sign-in page opens on `http://localhost:3000`.
 
 Tests: `npm test` (compiles `src/` and `tests/`, then runs everything with Node's test runner).
+
+## Contributing and releases
+
+Changes go through pull requests with a Conventional Commit title (`feat: ...`, `fix: ...`); CI must pass. Versions, tags and `CHANGELOG.md` are produced by release-please: merge the Release PR to cut a release. A release does not deploy; see [deploy/README.md](deploy/README.md) for deploying. Full rules for people and agents: [.claude/rules/cicd.md](.claude/rules/cicd.md).
