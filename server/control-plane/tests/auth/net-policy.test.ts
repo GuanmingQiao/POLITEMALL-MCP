@@ -45,7 +45,7 @@ test("allows the school hosts and Microsoft sign-in hosts", () => {
   for (const url of [
     "https://politemall.example.edu/d2l/home", "https://nyp.example.edu/d2l/lp/auth/login",
     "https://login.microsoftonline.com/common/oauth2", "https://login.live.com/", "https://aadcdn.msauth.net/x.js",
-    "https://aadcdn.msftauth.net/x.js", "https://account.microsoft.com/", "https://foo.live.com/",
+    "https://aadcdn.msftauth.net/x.js", "https://account.microsoft.com/", "https://foo.live.com/", "https://loginhub.polite.edu.sg/login", "https://nyplms.polite.edu.sg/d2l/home",
   ]) {
     assert.equal(nav(url), "allow", url);
     assert.equal(sub(url), "allow", url);
@@ -56,6 +56,8 @@ test("a lookalike host is not allowed", () => {
   assert.equal(nav("https://login.microsoftonline.com.evil.example/"), "block");
   assert.equal(nav("https://evilmicrosoft.com/"), "block");
   assert.equal(nav("https://notlive.com/"), "block");
+  assert.equal(nav("https://evilpolite.edu.sg/"), "block");
+  assert.equal(nav("https://polite.edu.sg.evil.example/"), "block");
   assert.equal(nav("https://politemall.example.edu.evil.example/"), "block");
 });
 

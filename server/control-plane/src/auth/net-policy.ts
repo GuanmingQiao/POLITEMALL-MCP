@@ -18,6 +18,9 @@ export const MICROSOFT_ALLOWED = [
   "*.live.com",
 ];
 
+// The schools' own domain: the LMS hosts hand sign-in to sibling hosts such as loginhub.polite.edu.sg.
+export const SCHOOL_ALLOWED = ["polite.edu.sg", "*.polite.edu.sg"];
+
 export function hostMatches(host: string, patterns: Iterable<string>): boolean {
   for (const p of patterns) {
     if (p.startsWith("*.") ? host.endsWith(p.slice(1)) : host === p) return true;
@@ -104,6 +107,6 @@ export function decideRequest(rawUrl: string, isNavigation: boolean, allowedHost
   // they are trusted before the address check.
   if (hostMatches(host, allowedHosts)) return "allow";
   if (isNonPublicHost(host)) return "block";
-  if (hostMatches(host, MICROSOFT_ALLOWED)) return "allow";
+  if (hostMatches(host, MICROSOFT_ALLOWED) || hostMatches(host, SCHOOL_ALLOWED)) return "allow";
   return isNavigation ? "block" : "report";
 }
