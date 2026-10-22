@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:25-bookworm-slim
 
 # Chromium for the streamed sign-in (see src/auth/signin-browser.ts). Installed from Debian rather
 # than downloaded by Playwright so the image has one browser, from one place.
