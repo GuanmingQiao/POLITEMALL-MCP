@@ -36,7 +36,7 @@
 
 ## 7. Live verification (needs a signed-in session)
 
-- [ ] 7.1 Read the issue #1 HTML topics (Syllabus, Learning Plan, Assessment, Assessment Components in course 1032348) and confirm Markdown output; record the observed `topicFile` content type and `Description` shape, adjusting detection if they differ
-- [ ] 7.2 Read topic 15145379 in course 1032338 and confirm a long document pages correctly end to end via `nextOffset`
-- [ ] 7.3 Confirm `.docx`/`.pdf` topics still work and `call_d2l_operation` refuses a real binary
+- [x] 7.1 Read the issue #1 HTML topics (Syllabus, Learning Plan, Assessment, Assessment Components in course 1032348) and confirm Markdown output (Learning Plan 15691201 verified live 2026-10-21: Markdown with table; its Description is `{Text, Html}`, both empty); record the observed `topicFile` content type and `Description` shape, adjusting detection if they differ
+- [x] 7.2 Read topic 15145379 in course 1032338 and confirm a long document pages correctly end to end via `nextOffset` (verified live 2026-10-22: slice 1 = chars 0-19999, then `offset` 20000 returned the rest, 25899 total, picking up mid-word exactly where slice 1 stopped)
+- [x] 7.3 (verified live 2026-10-21: PDF and DOCX topics extract; call_d2l_operation returns the HTML file as Markdown and refuses a DOCX as binary) Confirm `.docx`/`.pdf` topics still work and `call_d2l_operation` refuses a real binary
 - [ ] 7.4 Deploy and reply on issue #1 with the result
