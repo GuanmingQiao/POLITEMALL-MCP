@@ -1,5 +1,10 @@
 # politemall-mcp
 
+[![CI](https://github.com/GuanmingQiao/POLITEMALL-MCP/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/GuanmingQiao/POLITEMALL-MCP/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/GuanmingQiao/POLITEMALL-MCP)](https://github.com/GuanmingQiao/POLITEMALL-MCP/releases)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](server/control-plane/package.json)
+[![License: MIT](https://img.shields.io/github/license/GuanmingQiao/POLITEMALL-MCP)](LICENSE)
+
 MCP server for the Singapore polytechnic/ITE learning systems on **POLITEMall**: the two
 D2L Brightspace tenants **POLITEMall** and **NYP**. Talks directly to each tenant's own REST API as
 the signed-in person — no institutional API key or app registration involved.
@@ -215,3 +220,7 @@ Tests: `npm test` (compiles `src/` and `tests/`, then runs everything with Node'
 ## Contributing and releases
 
 Changes go through pull requests with a Conventional Commit title (`feat: ...`, `fix: ...`); CI must pass. Versions, tags and `CHANGELOG.md` are produced by release-please: merge the Release PR to cut a release. A release does not deploy; see [deploy/README.md](deploy/README.md) for deploying. Full rules for people and agents: [.claude/rules/cicd.md](.claude/rules/cicd.md).
+
+## License
+
+[MIT](LICENSE). Third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
