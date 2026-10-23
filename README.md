@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/GuanmingQiao/POLITEMALL-MCP/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/GuanmingQiao/POLITEMALL-MCP/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/GuanmingQiao/POLITEMALL-MCP)](https://github.com/GuanmingQiao/POLITEMALL-MCP/releases)
+[![npm](https://img.shields.io/npm/v/@qiaoguanming/politemall-mcp)](https://www.npmjs.com/package/@qiaoguanming/politemall-mcp)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](server/control-plane/package.json)
 [![License: MIT](https://img.shields.io/github/license/GuanmingQiao/POLITEMALL-MCP)](LICENSE)
 
@@ -11,7 +12,8 @@ the signed-in person — no institutional API key or app registration involved.
 
 **Live server:** `https://<your-server-host>` — one shared server; each person signs in once with
 their own Microsoft account. The exact same server (same tools, same code) can also
-[run on your own machine](#running-it-locally).
+[run on your own machine](#running-it-locally) with `npx -y @qiaoguanming/politemall-mcp@latest`, signing in in
+your own browser and keeping your sign-in data on your own disk.
 
 ## The two tenants
 
@@ -183,7 +185,8 @@ server publishes its OAuth metadata and supports dynamic client registration and
 server/
   control-plane/            the MCP server (Streamable HTTP) — the only server in this repo
     src/
-      index.ts, local.ts    hosted entry point / local entry point; app.ts builds the HTTP app
+      index.ts              hosted entry point; app.ts builds the HTTP app
+      local/                npx entry point: stdio server, local-browser sign-in, key storage, CLI
       server.ts             builds the MCP server for one caller
       api/                  D2L client: version discovery, routes, pagination, errors
       auth/                 OAuth server, streamed sign-in, session vault, token mint/renewal, encryption, rate limiting
@@ -202,20 +205,45 @@ and operated on AWS.
 
 ## Running it locally
 
-There is one server, and it runs the same tools locally as in the cloud:
+The same tools, D2L client and session handling run on your own computer, started by your MCP
+client with `npx`. Only two things differ from the hosted server: you sign in in a browser window
+on your own computer, and your sign-in data stays on your own disk.
 
-```bash
-cd server/control-plane
-npm install
-npm run local        # builds, then starts on http://localhost:3000 (no AWS needed)
+Add this to your MCP client's servers (or run `npx -y @qiaoguanming/politemall-mcp@latest setup` and answer yes
+for the clients it finds):
+
+```json
+{ "mcpServers": { "politemall": { "command": "npx", "args": ["-y", "@qiaoguanming/politemall-mcp@latest"] } } }
 ```
 
-`npm run local` generates a master key into `server/control-plane/data/` on first start and
-keeps encrypted sessions there. It needs a Chromium for the streamed sign-in: set
-`CHROMIUM_PATH` to a Chrome, Edge or Chromium executable. Add `http://localhost:3000/mcp` to your MCP
-client the same way as above; the sign-in page opens on `http://localhost:3000`.
+Needs Node.js 22 or newer and Google Chrome or Microsoft Edge (or set `CHROMIUM_PATH` to a Chrome,
+Edge or Chromium executable). Nothing is downloaded. The first time you ask for something, a
+browser window opens on the school's Microsoft sign-in; type your own credentials and approve MFA
+there. The window closes by itself and you ask again. On macOS run `npx` from your home folder, not
+Documents, Desktop or Downloads.
 
-Tests: `npm test` (compiles `src/` and `tests/`, then runs everything with Node's test runner).
+| Command | What it does |
+|---|---|
+| `npx -y @qiaoguanming/politemall-mcp@latest` | Runs the MCP server over stdio (what your client launches) |
+| `... setup` | Checks Node and the browser, offers to add the server to your MCP clients, offers to sign in. Never asks for a password |
+| `... auth` | Opens the sign-in window now (also retries a stuck sign-in) |
+| `... auth --logout` | Deletes the sign-in data stored on this computer (does not sign you out of Microsoft or the school elsewhere) |
+| `... doctor` | Checks Node, browser, key storage, data directory, connectivity and who is signed in; prints no secrets |
+
+**Where your data lives.** Encrypted sessions are in `sessions.json` under `%APPDATA%\politemall-mcp`
+(Windows), `~/Library/Application Support/politemall-mcp` (macOS) or `~/.local/share/politemall-mcp`
+(Linux); set `POLITEMALL_DATA_DIR` to move it. The encryption key is kept in the operating
+system's credential store (Keychain, Credential Manager, Secret Service) and, only when none is
+available, in an owner-only `master.key` beside it. `doctor` tells you which. Your Microsoft
+password is never stored or seen by this program.
+
+`npx -y @qiaoguanming/politemall-mcp@latest` always runs the newest release (npx may reuse a cached copy for a
+short while). To pin one, use `@qiaoguanming/politemall-mcp@X.Y.Z`; releases are listed on the
+[releases page](https://github.com/GuanmingQiao/POLITEMALL-MCP/releases).
+
+Developing it: from `server/control-plane`, `npm ci && npm run build`, then
+`node dist/local/cli.js` is the same command. Tests: `npm test` (compiles `src/` and `tests/`, then
+runs everything with Node's test runner).
 
 ## Contributing and releases
 

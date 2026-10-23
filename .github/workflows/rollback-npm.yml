@@ -1,0 +1,60 @@
+name: Roll back npm latest
+
+# Points "latest" at an earlier published version, and optionally marks a bad version deprecated.
+# Versions are never unpublished. Run it from the Actions tab. The "npm-rollback" environment holds
+# NPM_TOKEN (a granular token limited to this package) and should require a reviewer: npm Trusted
+# Publishing covers "npm publish" only, not dist-tag or deprecate.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published version that should become latest, for example 0.1.0
+        required: true
+        type: string
+      deprecate_version:
+        description: Optional bad version to mark deprecated, for example 0.2.0
+        required: false
+        type: string
+      deprecate_message:
+        description: Message shown to anyone installing the deprecated version
+        required: false
+        type: string
+        default: Broken release; use the latest version instead.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment: npm-rollback
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Move latest and optionally deprecate
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          BAD_VERSION: ${{ inputs.deprecate_version }}
+          MESSAGE: ${{ inputs.deprecate_message }}
+        run: |
+          NAME=@qiaoguanming/politemall-mcp
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$VERSION' is not a version number."; exit 1
+          fi
+          if ! npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "::error::$NAME@$VERSION is not published."; exit 1
+          fi
+          npm dist-tag add "$NAME@$VERSION" latest
+          echo "latest is now $(npm view "$NAME" dist-tags.latest)"
+          if [ -n "$BAD_VERSION" ]; then
+            npm deprecate "$NAME@$BAD_VERSION" "$MESSAGE"
+            echo "Deprecated $NAME@$BAD_VERSION"
+          fi

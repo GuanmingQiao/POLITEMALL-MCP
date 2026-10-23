@@ -5,7 +5,7 @@
 1. Branch from `main` (`feat/...`, `fix/...`). Never push to `main`.
 2. For a feature or behavior change, start with an OpenSpec change (`openspec/changes/<name>`) and link it in the PR.
 3. Open a PR. The **PR title must be a Conventional Commit**: `feat: ...`, `fix: ...`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, `ci:`, `chore:`, `revert:`. Use `feat!:` or a `BREAKING CHANGE:` footer for breaking changes. PRs are squash-merged, so the title becomes the commit on `main` that sets the version and changelog. Commits on the branch can be free-form.
-4. Required checks must be green to merge: `test` (build + `npm test`), `docker` (image builds), `pr-title`. The `openspec` check validates specs and changes. Reproduce locally with the commands in `CLAUDE.md`.
+4. Required checks must be green to merge: `test` (build + `npm test`), `docker` (image builds), `pr-title`. The `package` check (pack, inspect and start the npm package) and the `openspec` check (validates specs and changes) also run on every PR. Reproduce locally with the commands in `CLAUDE.md`.
 5. After merging an OpenSpec change's implementation, archive it (`/opsx:archive`) in its own `chore:` PR.
 
 ## Releases
@@ -16,9 +16,16 @@
 - Do not create tags or releases by hand. Do not edit `CHANGELOG.md`, `version.txt`, `.release-please-manifest.json`, or the package version outside the Release PR.
 - The workflow uses the `RELEASE_PLEASE_TOKEN` secret so CI runs on the Release PR. If the Release PR is not updating, the token has probably expired; tell the user, do not work around it.
 
+## Publishing to npm
+
+- Merging the Release PR also publishes `@qiaoguanming/politemall-mcp@X.Y.Z` to npm: `release-please.yml` calls `publish-npm.yml` with the new tag. It checks the tag equals the package version, builds, tests, runs the pack smoke check, then `npm publish --provenance`. Stable versions get the `latest` tag (so `npx -y @qiaoguanming/politemall-mcp@latest` runs them); a pre-release version gets `next`. Re-running it for a published version does nothing.
+- Publishing uses npm Trusted Publishing (no token). npm validates the **calling** workflow, so the trusted publisher is configured for `release-please.yml`. Never add an `NPM_TOKEN` to the publish path or run `npm publish` by hand after the first bootstrap publish.
+- Roll back a bad release with the **Roll back npm latest** workflow (`rollback-npm.yml`, environment `npm-rollback`, which holds an `NPM_TOKEN` limited to this package): it repoints `latest` and can deprecate the bad version. Never `npm unpublish`.
+- If `package` or the publish job fails, fix it in a PR; do not edit versions or tags to work around it.
+
 ## Deploying
 
-A release does **not** update the server. Deployment to AWS is manual: follow "Redeploying after a code change" in `deploy/README.md` (SSM, no SSH), at the release tag. Only do it when the user explicitly asks. Automated deploy is planned as a separate change.
+A release does **not** update the server. Deployment to AWS is manual: follow "Redeploying after a code change" in `deploy/README.md` (SSM, no SSH), at the release tag. Only do it when the user explicitly asks. Publishing to npm is automatic but separate from deploying. Automated deploy is planned as a separate change.
 
 ## Never
 

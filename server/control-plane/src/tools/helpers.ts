@@ -17,12 +17,17 @@ export function errorResult(text: string) {
   return { isError: true, content: [{ type: "text" as const, text }] };
 }
 
+// How a caller is told to sign in: the host's own hint when it has one, otherwise the sign-in link.
+function signInPrompt(ctx: ToolContext): string {
+  return ctx.connectHint ? ctx.connectHint() : `Sign in at ${ctx.connectUrl()}.`;
+}
+
 // The credential for a school, or the message to give the caller instead (not connected, session
 // ended, or D2L briefly unreachable).
 export async function authFor(ctx: ToolContext, school: D2LSchool): Promise<{ ok: true; auth: string } | { ok: false; message: string }> {
   try {
     const auth = await ctx.getD2lAuth(school);
-    if (!auth) return { ok: false, message: `Your ${school} session isn't connected. Sign in at ${ctx.connectUrl()}.` };
+    if (!auth) return { ok: false, message: `Your ${school} session isn't connected. ${signInPrompt(ctx)}` };
     return { ok: true, auth };
   } catch (err) {
     const message = await explainD2lError(ctx, err, school, "");
@@ -61,7 +66,7 @@ export async function explainD2lError(
 ): Promise<string | undefined> {
   if (err instanceof SessionExpiredError) {
     await ctx.invalidateD2lAuth?.(school);
-    return `Your ${school} session expired — sign in again at ${ctx.connectUrl()}.`;
+    return ctx.connectHint ? `Your ${school} session expired. ${ctx.connectHint()}` : `Your ${school} session expired — sign in again at ${ctx.connectUrl()}.`;
   }
   if (err instanceof TokenRenewalError) {
     return `${err.message} This is temporary — try again shortly.`;
@@ -94,7 +99,7 @@ export async function runAcrossD2LSchools<T>(
 ): Promise<{ results: T[]; warnings: string[]; attempted: number; failed: number; succeeded: D2LSchool[] }> {
   const schools = ctx.connectedSchools().filter((s): s is D2LSchool => s === "politemall" || s === "nyp");
   if (schools.length === 0) {
-    return { results: [], warnings: [`No school connected yet. Sign in at ${ctx.connectUrl()}.`], attempted: 0, failed: 0, succeeded: [] };
+    return { results: [], warnings: [`No school connected yet. ${signInPrompt(ctx)}`], attempted: 0, failed: 0, succeeded: [] };
   }
 
   const results: T[] = [];

@@ -4,6 +4,7 @@ import type { D2LSchool } from "../types/schools.js";
 import { config } from "../utils/config.js";
 import { auditLog } from "../utils/audit-log.js";
 import { decideRequest } from "./net-policy.js";
+import { launchBrowserProcess } from "./browser-discovery.js";
 import type { ReloginResult } from "./d2l-session.js";
 import { hasNewerMicrosoftState, parseBrowserState } from "./microsoft-state.js";
 import { browserStateStatus, getBrowserState, saveBrowserState, touchBrowserState, type SchoolSession } from "./session-vault.js";
@@ -63,6 +64,7 @@ export function chromiumArgs(env: NodeJS.ProcessEnv = process.env): string[] {
 }
 
 const MAX_NET_HOSTS = 20;
+const CLOSE_TIMEOUT_MS = 10_000;
 
 // Hosts the browser may navigate to: the school hosts (so tests and the real tenants share one
 // source) plus, in the policy itself, Microsoft's sign-in hosts.
@@ -78,12 +80,16 @@ function schoolHosts(): string[] {
   return hosts;
 }
 
-export async function launchBrowser(storageState?: string): Promise<LaunchedBrowser> {
+// `headed` is the local sign-in: a visible window on the person's own computer, at its natural
+// size, with none of the hosted protections that exist to guard the server from a remote user's
+// page (the request allowlist) or to suit a browser nobody can touch (the WebAuthn shim).
+export async function launchBrowser(storageState?: string, opts: { headed?: boolean } = {}): Promise<LaunchedBrowser> {
+  const headed = opts.headed === true;
   const args = chromiumArgs();
-  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined, args });
+  const browser = await launchBrowserProcess(chromium.launch.bind(chromium), { headless: !headed, args }, { local: config.local });
   try {
     const context = await browser.newContext({
-      viewport: VIEWPORT,
+      viewport: headed ? null : VIEWPORT,
       storageState: storageState ? JSON.parse(storageState) : undefined,
       locale: "en-SG",
       timezoneId: "Asia/Singapore",
@@ -112,6 +118,7 @@ export async function launchBrowser(storageState?: string): Promise<LaunchedBrow
       if (navigation) await route.fulfill({ status: 204 }).catch(() => undefined);
       else await route.abort("blockedbyclient").catch(() => undefined);
     };
+    if (!headed)
     await context.route("**/*", async (route) => {
       const request = route.request();
       const url = request.url();
@@ -153,6 +160,7 @@ export async function launchBrowser(storageState?: string): Promise<LaunchedBrow
     // and Microsoft would wait on it forever. Present the browser as not supporting WebAuthn so
     // Microsoft offers a method the person can complete here (password, Authenticator approval or
     // code) instead of defaulting to a passkey.
+    if (!headed)
     await context.addInitScript(() => {
       const g = globalThis as unknown as { PublicKeyCredential?: unknown; navigator?: { credentials?: { get?: unknown; create?: unknown } } };
       try {
@@ -176,7 +184,9 @@ export async function launchBrowser(storageState?: string): Promise<LaunchedBrow
       async close() {
         if (closed) return;
         closed = true;
-        await browser.close().catch(() => undefined);
+        // A browser that does not exit when asked (seen with Microsoft Edge on Windows) must not
+        // hold up the sign-in or a renewal, so the wait is bounded.
+        await Promise.race([browser.close().catch(() => undefined), new Promise<void>((resolve) => setTimeout(resolve, CLOSE_TIMEOUT_MS).unref())]);
         if (blocked.size > 0 || reported.size > 0) {
           auditLog("signin_net_summary", { blocked: Object.fromEntries(blocked), reported: Object.fromEntries(reported) });
         }

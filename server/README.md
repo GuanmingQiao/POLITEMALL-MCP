@@ -47,3 +47,19 @@ host names only. `SIGNIN_NET_MODE=report` turns blocking into reporting without 
 | `SIGNIN_PAUSE_MS` | `300000` | How long a paused IP cannot start a browser |
 | `SIGNIN_MAX_PENDING_PER_IP` | `10` | Open, never-started anonymous links one IP may hold |
 | `SIGNIN_MAX_PENDING` | `200` | The same, overall |
+
+## Running it on a person's own computer
+
+`src/local/` is the npx entry point (`npx -y @qiaoguanming/politemall-mcp@latest`; see the root `README.md`
+for use). It runs the same `buildMcpServer` as the hosted server over stdio, with a fixed single
+user, instead of Express and OAuth. What differs from the hosted server is only:
+
+- **Sign-in:** a visible Chrome or Edge window on the person's computer (`src/local/signin.ts`),
+  using the same session-harvest loop as the streamed sign-in (`src/auth/signin-harvest.ts`). The
+  request allowlist and caps above apply to the hosted streamed browser, not to this window.
+- **Credential storage:** `sessions.json` in a per-user directory (`src/local/paths.ts`), with the
+  encryption key in the OS credential store and an owner-only file as fallback
+  (`src/local/key-store.ts`). Startup refuses when stored data exists but its key is gone.
+
+stdout carries only MCP protocol traffic; logs go to stderr. `POLITEMALL_HOST=local` (set by
+`src/local/cli.ts` before anything loads) selects these paths in `src/utils/config.ts`.

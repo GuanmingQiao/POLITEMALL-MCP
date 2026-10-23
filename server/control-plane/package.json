@@ -1,17 +1,39 @@
 {
-  "name": "politemall-mcp-control-plane",
+  "name": "@qiaoguanming/politemall-mcp",
   "version": "0.1.0",
-  "private": true,
+  "description": "MCP server for the POLITEMall and NYP D2L Brightspace learning systems. Runs on your computer and signs in in your own browser.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GuanmingQiao/POLITEMALL-MCP.git",
+    "directory": "server/control-plane"
+  },
+  "homepage": "https://github.com/GuanmingQiao/POLITEMALL-MCP#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "brightspace",
+    "d2l",
+    "politemall",
+    "nyp"
+  ],
   "type": "module",
+  "bin": {
+    "politemall-mcp": "dist/local/cli.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.js"
+  ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "local": "npm run build && node dist/local.js",
-    "test": "tsc -p tsconfig.test.json && node --test \".test-build/tests/**/*.test.js\""
+    "test": "tsc -p tsconfig.test.json && node --test \".test-build/tests/**/*.test.js\"",
+    "smoke": "node scripts/smoke-pack.mjs",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.685.0",
@@ -30,5 +52,8 @@
     "@types/turndown": "^5.0.6",
     "@types/ws": "^8.18.2",
     "typescript": "^5.6.3"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring": "^2.1.2"
   }
 }
