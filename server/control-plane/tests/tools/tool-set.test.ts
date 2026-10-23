@@ -30,6 +30,6 @@ test("hosted and non-hosted contexts expose the identical tool set", async () =>
   const hosted = await listToolNames(createUserContext("some-user"));
   const other = await listToolNames(inMemory);
   assert.deepEqual(other, hosted);
-  assert.equal(hosted.length, 36);
+  assert.equal(hosted.length, 39);
   for (const name of hosted) assert.doesNotMatch(name, /step/i, "STEP tools are not exposed");
 });

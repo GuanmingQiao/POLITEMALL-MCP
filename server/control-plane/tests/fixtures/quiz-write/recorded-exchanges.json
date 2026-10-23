@@ -1,0 +1,2650 @@
+[
+ {
+  "method": "POST",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/",
+  "requestBody": {
+   "Name": "MCP spike (safe to delete)",
+   "IsActive": false,
+   "SortOrder": 0,
+   "AutoExportToGrades": false,
+   "GradeItemId": null,
+   "IsAutoSetGraded": false,
+   "Instructions": {
+    "Text": {
+     "Content": "Spike quiz created by politemall-mcp. Hidden. Safe to delete.",
+     "Type": "Text"
+    },
+    "IsDisplayed": true
+   },
+   "Description": {
+    "Text": {
+     "Content": "",
+     "Type": "Text"
+    },
+    "IsDisplayed": false
+   },
+   "Header": {
+    "Text": {
+     "Content": "",
+     "Type": "Text"
+    },
+    "IsDisplayed": false
+   },
+   "Footer": {
+    "Text": {
+     "Content": "",
+     "Type": "Text"
+    },
+    "IsDisplayed": false
+   },
+   "StartDate": null,
+   "EndDate": null,
+   "DueDate": null,
+   "DisplayInCalendar": false,
+   "NumberOfAttemptsAllowed": 2,
+   "LateSubmissionInfo": {
+    "LateSubmissionOption": 0,
+    "LateLimitMinutes": null
+   },
+   "SubmissionTimeLimit": {
+    "IsEnforced": true,
+    "ShowClock": true,
+    "TimeLimitValue": 30
+   },
+   "SubmissionGracePeriod": 0,
+   "Password": null,
+   "AllowHints": false,
+   "DisableRightClick": false,
+   "DisablePagerAndAlerts": false,
+   "NotificationEmail": null,
+   "CalcTypeId": 1,
+   "RestrictIPAddressRange": null,
+   "CategoryId": null,
+   "PreventMovingBackwards": false,
+   "Shuffle": false,
+   "AllowOnlyUsersWithSpecialAccess": false,
+   "IsRetakeIncorrectOnly": false,
+   "PagingTypeId": null,
+   "IsSynchronous": false,
+   "DeductionPercentage": null,
+   "HideQuestionPoints": false,
+   "IsSingleSession": false,
+   "AnnotationToolsEnabled": true
+  },
+  "status": 200,
+  "response": {
+   "QuizId": 1743139,
+   "Name": "MCP spike (safe to delete)",
+   "AutoExportToGrades": false,
+   "IsActive": false,
+   "GradeItemId": null,
+   "IsAutoSetGraded": false,
+   "Instructions": {
+    "Text": {
+     "Text": "Spike quiz created by politemall-mcp. Hidden. Safe to delete.",
+     "Html": "Spike quiz created by politemall-mcp. Hidden. Safe to delete."
+    },
+    "IsDisplayed": true
+   },
+   "Description": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Header": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Footer": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "StartDate": null,
+   "EndDate": null,
+   "DueDate": null,
+   "DisplayInCalendar": false,
+   "SortOrder": 1,
+   "SubmissionTimeLimit": {
+    "IsEnforced": true,
+    "ShowClock": true,
+    "TimeLimitValue": 30
+   },
+   "SubmissionGracePeriod": 0,
+   "LateSubmissionInfo": {
+    "LateSubmissionOption": 0,
+    "LateLimitMinutes": null
+   },
+   "AttemptsAllowed": {
+    "IsUnlimited": false,
+    "NumberOfAttemptsAllowed": 2
+   },
+   "Password": null,
+   "AllowHints": false,
+   "DisableRightClick": false,
+   "DisablePagerAndAlerts": false,
+   "RestrictIPAddressRange": [],
+   "NotificationEmail": null,
+   "CalcTypeId": 1,
+   "CategoryId": null,
+   "PreventMovingBackwards": false,
+   "Shuffle": false,
+   "ActivityId": "https://ids.brightspace.com/activities/quiz/927FAFEA-F39E-47A2-A004-9FE5405E0231-6476671",
+   "AllowOnlyUsersWithSpecialAccess": false,
+   "IsRetakeIncorrectOnly": false,
+   "PagingTypeId": 0,
+   "IsSynchronous": false,
+   "DeductionPercentage": null,
+   "HideQuestionPoints": false,
+   "IsSingleSession": false,
+   "AnnotationToolsEnabled": true
+  }
+ },
+ {
+  "method": "POST",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": {
+   "QuestionTypeId": 1,
+   "Points": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "QuestionInfo": {
+    "QuestionText": {
+     "Content": "Spike MC",
+     "Type": "Text"
+    },
+    "Randomize": false,
+    "Answers": [
+     {
+      "Answer": {
+       "Content": "Right",
+       "Type": "Text"
+      },
+      "Weight": 1
+     },
+     {
+      "Answer": {
+       "Content": "Wrong",
+       "Type": "Text"
+      },
+      "Weight": 0
+     }
+    ]
+   }
+  },
+  "status": 200,
+  "response": {
+   "QuestionId": 24691707,
+   "QuestionTypeId": 1,
+   "Name": null,
+   "QuestionText": {
+    "Text": "Spike MC",
+    "Html": "Spike MC"
+   },
+   "Points": 1.0,
+   "Difficulty": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "Hint": null,
+   "Feedback": null,
+   "LastModifiedBy": 0,
+   "LastModified": "2026-10-23T10:47:26.996Z",
+   "SectionId": 0,
+   "QuestionTemplateId": 5082855,
+   "QuestionTemplateVersionId": 5653446,
+   "QuestionInfo": {
+    "Answers": [
+     {
+      "PartId": 20737204,
+      "Answer": {
+       "Text": "Right",
+       "Html": "Right"
+      },
+      "AnswerFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "Weight": 100.0
+     },
+     {
+      "PartId": 20737203,
+      "Answer": {
+       "Text": "Wrong",
+       "Html": "Wrong"
+      },
+      "AnswerFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "Weight": 0.0
+     }
+    ],
+    "Randomize": false,
+    "Enumeration": 4
+   }
+  }
+ },
+ {
+  "method": "POST",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": {
+   "QuestionTypeId": 2,
+   "Points": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "QuestionInfo": {
+    "QuestionText": {
+     "Content": "Spike TF",
+     "Type": "Text"
+    },
+    "IsTrue": true
+   }
+  },
+  "status": 200,
+  "response": {
+   "QuestionId": 24691708,
+   "QuestionTypeId": 2,
+   "Name": null,
+   "QuestionText": {
+    "Text": "Spike TF",
+    "Html": "Spike TF"
+   },
+   "Points": 1.0,
+   "Difficulty": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "Hint": null,
+   "Feedback": null,
+   "LastModifiedBy": 0,
+   "LastModified": "2026-10-23T10:47:27.274Z",
+   "SectionId": 0,
+   "QuestionTemplateId": 5082856,
+   "QuestionTemplateVersionId": 5653447,
+   "QuestionInfo": {
+    "TruePartId": 20737206,
+    "TrueWeight": 100.0,
+    "TrueFeedback": {
+     "Text": "",
+     "Html": ""
+    },
+    "FalsePartId": 20737205,
+    "FalseWeight": 0.0,
+    "FalseFeedback": {
+     "Text": "",
+     "Html": ""
+    },
+    "Enumeration": 4
+   }
+  }
+ },
+ {
+  "method": "POST",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": {
+   "QuestionTypeId": 4,
+   "Points": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "QuestionInfo": {
+    "QuestionText": {
+     "Content": "Spike MS",
+     "Type": "Text"
+    },
+    "Randomize": false,
+    "Answers": [
+     {
+      "Answer": {
+       "Content": "A",
+       "Type": "Text"
+      },
+      "IsCorrect": true
+     },
+     {
+      "Answer": {
+       "Content": "B",
+       "Type": "Text"
+      },
+      "IsCorrect": true
+     },
+     {
+      "Answer": {
+       "Content": "C",
+       "Type": "Text"
+      },
+      "IsCorrect": false
+     }
+    ]
+   }
+  },
+  "status": 200,
+  "response": {
+   "QuestionId": 24691709,
+   "QuestionTypeId": 4,
+   "Name": null,
+   "QuestionText": {
+    "Text": "Spike MS",
+    "Html": "Spike MS"
+   },
+   "Points": 1.0,
+   "Difficulty": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "Hint": null,
+   "Feedback": null,
+   "LastModifiedBy": 0,
+   "LastModified": "2026-10-23T10:47:27.591Z",
+   "SectionId": 0,
+   "QuestionTemplateId": 5082857,
+   "QuestionTemplateVersionId": 5653448,
+   "QuestionInfo": {
+    "Answers": [
+     {
+      "PartId": 20737209,
+      "Answer": {
+       "Text": "A",
+       "Html": "A"
+      },
+      "AnswerFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "IsCorrect": true
+     },
+     {
+      "PartId": 20737208,
+      "Answer": {
+       "Text": "B",
+       "Html": "B"
+      },
+      "AnswerFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "IsCorrect": true
+     },
+     {
+      "PartId": 20737207,
+      "Answer": {
+       "Text": "C",
+       "Html": "C"
+      },
+      "AnswerFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "IsCorrect": false
+     }
+    ],
+    "Randomize": false,
+    "Enumeration": 4,
+    "Style": 2,
+    "GradingType": 0
+   }
+  }
+ },
+ {
+  "method": "POST",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": {
+   "QuestionTypeId": 8,
+   "Points": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "QuestionInfo": {
+    "QuestionText": {
+     "Content": "Spike SA",
+     "Type": "Text"
+    },
+    "Blanks": [
+     {
+      "Answers": [
+       "alpha",
+       "beta"
+      ]
+     }
+    ]
+   }
+  },
+  "status": 200,
+  "response": {
+   "QuestionId": 24691710,
+   "QuestionTypeId": 8,
+   "Name": null,
+   "QuestionText": {
+    "Text": "Spike SA",
+    "Html": "Spike SA"
+   },
+   "Points": 1.0,
+   "Difficulty": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "Hint": null,
+   "Feedback": null,
+   "LastModifiedBy": 0,
+   "LastModified": "2026-10-23T10:47:27.874Z",
+   "SectionId": 0,
+   "QuestionTemplateId": 5082858,
+   "QuestionTemplateVersionId": 5653449,
+   "QuestionInfo": {
+    "Blanks": [
+     {
+      "PartId": 20737210,
+      "Answers": [
+       {
+        "Text": "alpha",
+        "Weight": 100.0
+       },
+       {
+        "Text": "beta",
+        "Weight": 100.0
+       }
+      ],
+      "EvaluationType": 0
+     }
+    ],
+    "GradingType": 0
+   }
+  }
+ },
+ {
+  "method": "POST",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": {
+   "QuestionTypeId": 7,
+   "Points": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "QuestionInfo": {
+    "QuestionText": {
+     "Content": "Spike WR",
+     "Type": "Text"
+    },
+    "AnswerKey": {
+     "Content": "key",
+     "Type": "Text"
+    }
+   }
+  },
+  "status": 200,
+  "response": {
+   "QuestionId": 24691711,
+   "QuestionTypeId": 7,
+   "Name": null,
+   "QuestionText": {
+    "Text": "Spike WR",
+    "Html": "Spike WR"
+   },
+   "Points": 1.0,
+   "Difficulty": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "Hint": null,
+   "Feedback": null,
+   "LastModifiedBy": 0,
+   "LastModified": "2026-10-23T10:47:28.205Z",
+   "SectionId": 0,
+   "QuestionTemplateId": 5082859,
+   "QuestionTemplateVersionId": 5653450,
+   "QuestionInfo": {
+    "PartId": 20737211,
+    "EnableStudentEditor": false,
+    "InitialText": {
+     "Text": "",
+     "Html": ""
+    },
+    "AnswerKey": {
+     "Text": "key",
+     "Html": "key"
+    },
+    "EnableAttachments": false
+   }
+  }
+ },
+ {
+  "method": "POST",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": {
+   "QuestionTypeId": 5,
+   "Points": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "QuestionInfo": {
+    "QuestionText": {
+     "Content": "Spike MATCH",
+     "Type": "Text"
+    },
+    "Choices": [
+     {
+      "ChoiceId": "c1",
+      "Choice": {
+       "Content": "m1",
+       "Type": "Text"
+      }
+     },
+     {
+      "ChoiceId": "c2",
+      "Choice": {
+       "Content": "m2",
+       "Type": "Text"
+      }
+     },
+     {
+      "ChoiceId": "c3",
+      "Choice": {
+       "Content": "d1",
+       "Type": "Text"
+      }
+     }
+    ],
+    "Prompts": [
+     {
+      "Prompt": {
+       "Content": "p1",
+       "Type": "Text"
+      },
+      "CorrectChoiceId": "c1"
+     },
+     {
+      "Prompt": {
+       "Content": "p2",
+       "Type": "Text"
+      },
+      "CorrectChoiceId": "c2"
+     }
+    ]
+   }
+  },
+  "status": 200,
+  "response": {
+   "QuestionId": 24691712,
+   "QuestionTypeId": 5,
+   "Name": null,
+   "QuestionText": {
+    "Text": "Spike MATCH",
+    "Html": "Spike MATCH"
+   },
+   "Points": 1.0,
+   "Difficulty": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "Hint": null,
+   "Feedback": null,
+   "LastModifiedBy": 0,
+   "LastModified": "2026-10-23T10:47:28.581Z",
+   "SectionId": 0,
+   "QuestionTemplateId": 5082860,
+   "QuestionTemplateVersionId": 5653451,
+   "QuestionInfo": {
+    "Choices": [
+     {
+      "ChoiceId": 20737214,
+      "Choice": {
+       "Text": "m1",
+       "Html": "m1"
+      }
+     },
+     {
+      "ChoiceId": 20737213,
+      "Choice": {
+       "Text": "m2",
+       "Html": "m2"
+      }
+     },
+     {
+      "ChoiceId": 20737212,
+      "Choice": {
+       "Text": "d1",
+       "Html": "d1"
+      }
+     }
+    ],
+    "Prompts": [
+     {
+      "PromptId": 20737216,
+      "Prompt": {
+       "Text": "p1",
+       "Html": "p1"
+      },
+      "CorrectChoiceId": 20737214
+     },
+     {
+      "PromptId": 20737215,
+      "Prompt": {
+       "Text": "p2",
+       "Html": "p2"
+      },
+      "CorrectChoiceId": 20737213
+     }
+    ],
+    "Randomize": true,
+    "GradingType": 1
+   }
+  }
+ },
+ {
+  "method": "POST",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": {
+   "QuestionTypeId": 6,
+   "Points": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "QuestionInfo": {
+    "QuestionText": {
+     "Content": "Spike ORD",
+     "Type": "Text"
+    },
+    "Items": [
+     {
+      "Item": {
+       "Content": "first",
+       "Type": "Text"
+      }
+     },
+     {
+      "Item": {
+       "Content": "second",
+       "Type": "Text"
+      }
+     },
+     {
+      "Item": {
+       "Content": "third",
+       "Type": "Text"
+      }
+     }
+    ]
+   }
+  },
+  "status": 200,
+  "response": {
+   "QuestionId": 24691713,
+   "QuestionTypeId": 6,
+   "Name": null,
+   "QuestionText": {
+    "Text": "Spike ORD",
+    "Html": "Spike ORD"
+   },
+   "Points": 1.0,
+   "Difficulty": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "Hint": null,
+   "Feedback": null,
+   "LastModifiedBy": 0,
+   "LastModified": "2026-10-23T10:47:28.952Z",
+   "SectionId": 0,
+   "QuestionTemplateId": 5082861,
+   "QuestionTemplateVersionId": 5653452,
+   "QuestionInfo": {
+    "Items": [
+     {
+      "ItemId": 20737219,
+      "Item": {
+       "Text": "first",
+       "Html": "first"
+      },
+      "ItemFeedback": {
+       "Text": "",
+       "Html": ""
+      }
+     },
+     {
+      "ItemId": 20737218,
+      "Item": {
+       "Text": "second",
+       "Html": "second"
+      },
+      "ItemFeedback": {
+       "Text": "",
+       "Html": ""
+      }
+     },
+     {
+      "ItemId": 20737217,
+      "Item": {
+       "Text": "third",
+       "Html": "third"
+      },
+      "ItemFeedback": {
+       "Text": "",
+       "Html": ""
+      }
+     }
+    ],
+    "Randomize": true,
+    "GradingType": 1
+   }
+  }
+ },
+ {
+  "method": "GET",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": null,
+  "status": 200,
+  "response": {
+   "Objects": [
+    {
+     "QuestionId": 24691705,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Probe D",
+      "Html": "Probe D"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:13.602Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082853,
+     "QuestionTemplateVersionId": 5653444,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737200,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 100.0
+       },
+       {
+        "PartId": 20737199,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691706,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Probe F",
+      "Html": "Probe F"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:13.997Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082854,
+     "QuestionTemplateVersionId": 5653445,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737202,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 100.0
+       },
+       {
+        "PartId": 20737201,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 1
+     }
+    },
+    {
+     "QuestionId": 24691707,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MC",
+      "Html": "Spike MC"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:26.996Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082855,
+     "QuestionTemplateVersionId": 5653446,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737204,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 100.0
+       },
+       {
+        "PartId": 20737203,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691708,
+     "QuestionTypeId": 2,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike TF",
+      "Html": "Spike TF"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.274Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082856,
+     "QuestionTemplateVersionId": 5653447,
+     "QuestionInfo": {
+      "TruePartId": 20737206,
+      "TrueWeight": 100.0,
+      "TrueFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "FalsePartId": 20737205,
+      "FalseWeight": 0.0,
+      "FalseFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691709,
+     "QuestionTypeId": 4,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MS",
+      "Html": "Spike MS"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.591Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082857,
+     "QuestionTemplateVersionId": 5653448,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737209,
+        "Answer": {
+         "Text": "A",
+         "Html": "A"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": true
+       },
+       {
+        "PartId": 20737208,
+        "Answer": {
+         "Text": "B",
+         "Html": "B"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": true
+       },
+       {
+        "PartId": 20737207,
+        "Answer": {
+         "Text": "C",
+         "Html": "C"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": false
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4,
+      "Style": 2,
+      "GradingType": 0
+     }
+    },
+    {
+     "QuestionId": 24691710,
+     "QuestionTypeId": 8,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike SA",
+      "Html": "Spike SA"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.874Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082858,
+     "QuestionTemplateVersionId": 5653449,
+     "QuestionInfo": {
+      "Blanks": [
+       {
+        "PartId": 20737210,
+        "Answers": [
+         {
+          "Text": "alpha",
+          "Weight": 100.0
+         },
+         {
+          "Text": "beta",
+          "Weight": 100.0
+         }
+        ],
+        "EvaluationType": 0
+       }
+      ],
+      "GradingType": 0
+     }
+    },
+    {
+     "QuestionId": 24691711,
+     "QuestionTypeId": 7,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike WR",
+      "Html": "Spike WR"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.205Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082859,
+     "QuestionTemplateVersionId": 5653450,
+     "QuestionInfo": {
+      "PartId": 20737211,
+      "EnableStudentEditor": false,
+      "InitialText": {
+       "Text": "",
+       "Html": ""
+      },
+      "AnswerKey": {
+       "Text": "key",
+       "Html": "key"
+      },
+      "EnableAttachments": false
+     }
+    },
+    {
+     "QuestionId": 24691712,
+     "QuestionTypeId": 5,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MATCH",
+      "Html": "Spike MATCH"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.581Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082860,
+     "QuestionTemplateVersionId": 5653451,
+     "QuestionInfo": {
+      "Choices": [
+       {
+        "ChoiceId": 20737214,
+        "Choice": {
+         "Text": "m1",
+         "Html": "m1"
+        }
+       },
+       {
+        "ChoiceId": 20737213,
+        "Choice": {
+         "Text": "m2",
+         "Html": "m2"
+        }
+       },
+       {
+        "ChoiceId": 20737212,
+        "Choice": {
+         "Text": "d1",
+         "Html": "d1"
+        }
+       }
+      ],
+      "Prompts": [
+       {
+        "PromptId": 20737216,
+        "Prompt": {
+         "Text": "p1",
+         "Html": "p1"
+        },
+        "CorrectChoiceId": 20737214
+       },
+       {
+        "PromptId": 20737215,
+        "Prompt": {
+         "Text": "p2",
+         "Html": "p2"
+        },
+        "CorrectChoiceId": 20737213
+       }
+      ],
+      "Randomize": true,
+      "GradingType": 1
+     }
+    },
+    {
+     "QuestionId": 24691713,
+     "QuestionTypeId": 6,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike ORD",
+      "Html": "Spike ORD"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.952Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082861,
+     "QuestionTemplateVersionId": 5653452,
+     "QuestionInfo": {
+      "Items": [
+       {
+        "ItemId": 20737219,
+        "Item": {
+         "Text": "first",
+         "Html": "first"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       },
+       {
+        "ItemId": 20737218,
+        "Item": {
+         "Text": "second",
+         "Html": "second"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       },
+       {
+        "ItemId": 20737217,
+        "Item": {
+         "Text": "third",
+         "Html": "third"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       }
+      ],
+      "Randomize": true,
+      "GradingType": 1
+     }
+    }
+   ],
+   "Next": null
+  }
+ },
+ {
+  "method": "GET",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139",
+  "requestBody": null,
+  "status": 200,
+  "response": {
+   "QuizId": 1743139,
+   "Name": "MCP spike (safe to delete)",
+   "AutoExportToGrades": false,
+   "IsActive": false,
+   "GradeItemId": null,
+   "IsAutoSetGraded": false,
+   "Instructions": {
+    "Text": {
+     "Text": "Spike quiz created by politemall-mcp. Hidden. Safe to delete.",
+     "Html": "Spike quiz created by politemall-mcp. Hidden. Safe to delete."
+    },
+    "IsDisplayed": true
+   },
+   "Description": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Header": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Footer": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "StartDate": null,
+   "EndDate": null,
+   "DueDate": "2026-12-01T09:00:00.000Z",
+   "DisplayInCalendar": false,
+   "SortOrder": 1,
+   "SubmissionTimeLimit": {
+    "IsEnforced": true,
+    "ShowClock": true,
+    "TimeLimitValue": 45
+   },
+   "SubmissionGracePeriod": 0,
+   "LateSubmissionInfo": {
+    "LateSubmissionOption": 0,
+    "LateLimitMinutes": null
+   },
+   "AttemptsAllowed": {
+    "IsUnlimited": false,
+    "NumberOfAttemptsAllowed": 2
+   },
+   "Password": null,
+   "AllowHints": false,
+   "DisableRightClick": false,
+   "DisablePagerAndAlerts": false,
+   "RestrictIPAddressRange": [],
+   "NotificationEmail": null,
+   "CalcTypeId": 1,
+   "CategoryId": null,
+   "PreventMovingBackwards": false,
+   "Shuffle": false,
+   "ActivityId": "https://ids.brightspace.com/activities/quiz/927FAFEA-F39E-47A2-A004-9FE5405E0231-6476671",
+   "AllowOnlyUsersWithSpecialAccess": false,
+   "IsRetakeIncorrectOnly": false,
+   "PagingTypeId": 0,
+   "IsSynchronous": false,
+   "DeductionPercentage": null,
+   "HideQuestionPoints": false,
+   "IsSingleSession": false,
+   "AnnotationToolsEnabled": true
+  }
+ },
+ {
+  "method": "GET",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139",
+  "requestBody": null,
+  "status": 200,
+  "response": {
+   "QuizId": 1743139,
+   "Name": "MCP spike (safe to delete)",
+   "AutoExportToGrades": false,
+   "IsActive": false,
+   "GradeItemId": null,
+   "IsAutoSetGraded": false,
+   "Instructions": {
+    "Text": {
+     "Text": "Spike quiz created by politemall-mcp. Hidden. Safe to delete.",
+     "Html": "Spike quiz created by politemall-mcp. Hidden. Safe to delete."
+    },
+    "IsDisplayed": true
+   },
+   "Description": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Header": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Footer": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "StartDate": null,
+   "EndDate": null,
+   "DueDate": "2026-12-01T09:00:00.000Z",
+   "DisplayInCalendar": false,
+   "SortOrder": 1,
+   "SubmissionTimeLimit": {
+    "IsEnforced": true,
+    "ShowClock": true,
+    "TimeLimitValue": 45
+   },
+   "SubmissionGracePeriod": 0,
+   "LateSubmissionInfo": {
+    "LateSubmissionOption": 0,
+    "LateLimitMinutes": null
+   },
+   "AttemptsAllowed": {
+    "IsUnlimited": false,
+    "NumberOfAttemptsAllowed": 2
+   },
+   "Password": null,
+   "AllowHints": false,
+   "DisableRightClick": false,
+   "DisablePagerAndAlerts": false,
+   "RestrictIPAddressRange": [],
+   "NotificationEmail": null,
+   "CalcTypeId": 1,
+   "CategoryId": null,
+   "PreventMovingBackwards": false,
+   "Shuffle": false,
+   "ActivityId": "https://ids.brightspace.com/activities/quiz/927FAFEA-F39E-47A2-A004-9FE5405E0231-6476671",
+   "AllowOnlyUsersWithSpecialAccess": false,
+   "IsRetakeIncorrectOnly": false,
+   "PagingTypeId": 0,
+   "IsSynchronous": false,
+   "DeductionPercentage": null,
+   "HideQuestionPoints": false,
+   "IsSingleSession": false,
+   "AnnotationToolsEnabled": true
+  }
+ },
+ {
+  "method": "GET",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139",
+  "requestBody": null,
+  "status": 200,
+  "response": {
+   "QuizId": 1743139,
+   "Name": "MCP spike (safe to delete)",
+   "AutoExportToGrades": false,
+   "IsActive": false,
+   "GradeItemId": null,
+   "IsAutoSetGraded": false,
+   "Instructions": {
+    "Text": {
+     "Text": "Spike quiz created by politemall-mcp. Hidden. Safe to delete.",
+     "Html": "Spike quiz created by politemall-mcp. Hidden. Safe to delete."
+    },
+    "IsDisplayed": true
+   },
+   "Description": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Header": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Footer": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "StartDate": null,
+   "EndDate": null,
+   "DueDate": "2026-12-01T09:00:00.000Z",
+   "DisplayInCalendar": false,
+   "SortOrder": 1,
+   "SubmissionTimeLimit": {
+    "IsEnforced": true,
+    "ShowClock": true,
+    "TimeLimitValue": 45
+   },
+   "SubmissionGracePeriod": 0,
+   "LateSubmissionInfo": {
+    "LateSubmissionOption": 0,
+    "LateLimitMinutes": null
+   },
+   "AttemptsAllowed": {
+    "IsUnlimited": false,
+    "NumberOfAttemptsAllowed": 2
+   },
+   "Password": null,
+   "AllowHints": false,
+   "DisableRightClick": false,
+   "DisablePagerAndAlerts": false,
+   "RestrictIPAddressRange": [],
+   "NotificationEmail": null,
+   "CalcTypeId": 1,
+   "CategoryId": null,
+   "PreventMovingBackwards": false,
+   "Shuffle": false,
+   "ActivityId": "https://ids.brightspace.com/activities/quiz/927FAFEA-F39E-47A2-A004-9FE5405E0231-6476671",
+   "AllowOnlyUsersWithSpecialAccess": false,
+   "IsRetakeIncorrectOnly": false,
+   "PagingTypeId": 0,
+   "IsSynchronous": false,
+   "DeductionPercentage": null,
+   "HideQuestionPoints": false,
+   "IsSingleSession": false,
+   "AnnotationToolsEnabled": true
+  }
+ },
+ {
+  "method": "PUT",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139",
+  "requestBody": {
+   "NumberOfAttemptsAllowed": 2,
+   "Name": "MCP spike (safe to delete)",
+   "IsActive": false,
+   "SortOrder": 1,
+   "AutoExportToGrades": false,
+   "GradeItemId": null,
+   "IsAutoSetGraded": false,
+   "Instructions": {
+    "Text": {
+     "Content": "Spike quiz created by politemall-mcp. Hidden. Safe to delete.",
+     "Type": "Html"
+    },
+    "IsDisplayed": true
+   },
+   "Description": {
+    "Text": {
+     "Content": "",
+     "Type": "Text"
+    },
+    "IsDisplayed": false
+   },
+   "Header": {
+    "Text": {
+     "Content": "",
+     "Type": "Text"
+    },
+    "IsDisplayed": false
+   },
+   "Footer": {
+    "Text": {
+     "Content": "",
+     "Type": "Text"
+    },
+    "IsDisplayed": false
+   },
+   "StartDate": null,
+   "EndDate": null,
+   "DueDate": "2026-12-01T09:00:00.000Z",
+   "DisplayInCalendar": false,
+   "LateSubmissionInfo": {
+    "LateSubmissionOption": 0,
+    "LateLimitMinutes": null
+   },
+   "SubmissionTimeLimit": {
+    "IsEnforced": true,
+    "ShowClock": true,
+    "TimeLimitValue": 45
+   },
+   "SubmissionGracePeriod": 0,
+   "Password": null,
+   "AllowHints": false,
+   "DisableRightClick": false,
+   "DisablePagerAndAlerts": false,
+   "NotificationEmail": null,
+   "CalcTypeId": 1,
+   "RestrictIPAddressRange": [],
+   "CategoryId": null,
+   "PreventMovingBackwards": false,
+   "Shuffle": false,
+   "AllowOnlyUsersWithSpecialAccess": false,
+   "IsRetakeIncorrectOnly": false,
+   "PagingTypeId": 0,
+   "IsSynchronous": false,
+   "DeductionPercentage": null,
+   "HideQuestionPoints": false,
+   "IsSingleSession": false,
+   "AnnotationToolsEnabled": true
+  },
+  "status": 200,
+  "response": {
+   "QuizId": 1743139,
+   "Name": "MCP spike (safe to delete)",
+   "AutoExportToGrades": false,
+   "IsActive": false,
+   "GradeItemId": null,
+   "IsAutoSetGraded": false,
+   "Instructions": {
+    "Text": {
+     "Text": "Spike quiz created by politemall-mcp. Hidden. Safe to delete.",
+     "Html": "Spike quiz created by politemall-mcp. Hidden. Safe to delete."
+    },
+    "IsDisplayed": true
+   },
+   "Description": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Header": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Footer": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "StartDate": null,
+   "EndDate": null,
+   "DueDate": "2026-12-01T09:00:00.000Z",
+   "DisplayInCalendar": false,
+   "SortOrder": 1,
+   "SubmissionTimeLimit": {
+    "IsEnforced": true,
+    "ShowClock": true,
+    "TimeLimitValue": 45
+   },
+   "SubmissionGracePeriod": 0,
+   "LateSubmissionInfo": {
+    "LateSubmissionOption": 0,
+    "LateLimitMinutes": null
+   },
+   "AttemptsAllowed": {
+    "IsUnlimited": false,
+    "NumberOfAttemptsAllowed": 2
+   },
+   "Password": null,
+   "AllowHints": false,
+   "DisableRightClick": false,
+   "DisablePagerAndAlerts": false,
+   "RestrictIPAddressRange": [],
+   "NotificationEmail": null,
+   "CalcTypeId": 1,
+   "CategoryId": null,
+   "PreventMovingBackwards": false,
+   "Shuffle": false,
+   "ActivityId": "https://ids.brightspace.com/activities/quiz/927FAFEA-F39E-47A2-A004-9FE5405E0231-6476671",
+   "AllowOnlyUsersWithSpecialAccess": false,
+   "IsRetakeIncorrectOnly": false,
+   "PagingTypeId": 0,
+   "IsSynchronous": false,
+   "DeductionPercentage": null,
+   "HideQuestionPoints": false,
+   "IsSingleSession": false,
+   "AnnotationToolsEnabled": true
+  }
+ },
+ {
+  "method": "GET",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139",
+  "requestBody": null,
+  "status": 200,
+  "response": {
+   "QuizId": 1743139,
+   "Name": "MCP spike (safe to delete)",
+   "AutoExportToGrades": false,
+   "IsActive": false,
+   "GradeItemId": null,
+   "IsAutoSetGraded": false,
+   "Instructions": {
+    "Text": {
+     "Text": "Spike quiz created by politemall-mcp. Hidden. Safe to delete.",
+     "Html": "Spike quiz created by politemall-mcp. Hidden. Safe to delete."
+    },
+    "IsDisplayed": true
+   },
+   "Description": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Header": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "Footer": {
+    "Text": {
+     "Text": "",
+     "Html": ""
+    },
+    "IsDisplayed": false
+   },
+   "StartDate": null,
+   "EndDate": null,
+   "DueDate": "2026-12-01T09:00:00.000Z",
+   "DisplayInCalendar": false,
+   "SortOrder": 1,
+   "SubmissionTimeLimit": {
+    "IsEnforced": true,
+    "ShowClock": true,
+    "TimeLimitValue": 45
+   },
+   "SubmissionGracePeriod": 0,
+   "LateSubmissionInfo": {
+    "LateSubmissionOption": 0,
+    "LateLimitMinutes": null
+   },
+   "AttemptsAllowed": {
+    "IsUnlimited": false,
+    "NumberOfAttemptsAllowed": 2
+   },
+   "Password": null,
+   "AllowHints": false,
+   "DisableRightClick": false,
+   "DisablePagerAndAlerts": false,
+   "RestrictIPAddressRange": [],
+   "NotificationEmail": null,
+   "CalcTypeId": 1,
+   "CategoryId": null,
+   "PreventMovingBackwards": false,
+   "Shuffle": false,
+   "ActivityId": "https://ids.brightspace.com/activities/quiz/927FAFEA-F39E-47A2-A004-9FE5405E0231-6476671",
+   "AllowOnlyUsersWithSpecialAccess": false,
+   "IsRetakeIncorrectOnly": false,
+   "PagingTypeId": 0,
+   "IsSynchronous": false,
+   "DeductionPercentage": null,
+   "HideQuestionPoints": false,
+   "IsSingleSession": false,
+   "AnnotationToolsEnabled": true
+  }
+ },
+ {
+  "method": "GET",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": null,
+  "status": 200,
+  "response": {
+   "Objects": [
+    {
+     "QuestionId": 24691705,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Probe D",
+      "Html": "Probe D"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:13.602Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082853,
+     "QuestionTemplateVersionId": 5653444,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737200,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 100.0
+       },
+       {
+        "PartId": 20737199,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691706,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Probe F",
+      "Html": "Probe F"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:13.997Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082854,
+     "QuestionTemplateVersionId": 5653445,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737202,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 100.0
+       },
+       {
+        "PartId": 20737201,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 1
+     }
+    },
+    {
+     "QuestionId": 24691707,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MC",
+      "Html": "Spike MC"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:26.996Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082855,
+     "QuestionTemplateVersionId": 5653446,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737204,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 100.0
+       },
+       {
+        "PartId": 20737203,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691708,
+     "QuestionTypeId": 2,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike TF",
+      "Html": "Spike TF"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.274Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082856,
+     "QuestionTemplateVersionId": 5653447,
+     "QuestionInfo": {
+      "TruePartId": 20737206,
+      "TrueWeight": 100.0,
+      "TrueFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "FalsePartId": 20737205,
+      "FalseWeight": 0.0,
+      "FalseFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691709,
+     "QuestionTypeId": 4,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MS",
+      "Html": "Spike MS"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.591Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082857,
+     "QuestionTemplateVersionId": 5653448,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737209,
+        "Answer": {
+         "Text": "A",
+         "Html": "A"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": true
+       },
+       {
+        "PartId": 20737208,
+        "Answer": {
+         "Text": "B",
+         "Html": "B"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": true
+       },
+       {
+        "PartId": 20737207,
+        "Answer": {
+         "Text": "C",
+         "Html": "C"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": false
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4,
+      "Style": 2,
+      "GradingType": 0
+     }
+    },
+    {
+     "QuestionId": 24691710,
+     "QuestionTypeId": 8,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike SA",
+      "Html": "Spike SA"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.874Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082858,
+     "QuestionTemplateVersionId": 5653449,
+     "QuestionInfo": {
+      "Blanks": [
+       {
+        "PartId": 20737210,
+        "Answers": [
+         {
+          "Text": "alpha",
+          "Weight": 100.0
+         },
+         {
+          "Text": "beta",
+          "Weight": 100.0
+         }
+        ],
+        "EvaluationType": 0
+       }
+      ],
+      "GradingType": 0
+     }
+    },
+    {
+     "QuestionId": 24691711,
+     "QuestionTypeId": 7,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike WR",
+      "Html": "Spike WR"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.205Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082859,
+     "QuestionTemplateVersionId": 5653450,
+     "QuestionInfo": {
+      "PartId": 20737211,
+      "EnableStudentEditor": false,
+      "InitialText": {
+       "Text": "",
+       "Html": ""
+      },
+      "AnswerKey": {
+       "Text": "key",
+       "Html": "key"
+      },
+      "EnableAttachments": false
+     }
+    },
+    {
+     "QuestionId": 24691712,
+     "QuestionTypeId": 5,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MATCH",
+      "Html": "Spike MATCH"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.581Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082860,
+     "QuestionTemplateVersionId": 5653451,
+     "QuestionInfo": {
+      "Choices": [
+       {
+        "ChoiceId": 20737214,
+        "Choice": {
+         "Text": "m1",
+         "Html": "m1"
+        }
+       },
+       {
+        "ChoiceId": 20737213,
+        "Choice": {
+         "Text": "m2",
+         "Html": "m2"
+        }
+       },
+       {
+        "ChoiceId": 20737212,
+        "Choice": {
+         "Text": "d1",
+         "Html": "d1"
+        }
+       }
+      ],
+      "Prompts": [
+       {
+        "PromptId": 20737216,
+        "Prompt": {
+         "Text": "p1",
+         "Html": "p1"
+        },
+        "CorrectChoiceId": 20737214
+       },
+       {
+        "PromptId": 20737215,
+        "Prompt": {
+         "Text": "p2",
+         "Html": "p2"
+        },
+        "CorrectChoiceId": 20737213
+       }
+      ],
+      "Randomize": true,
+      "GradingType": 1
+     }
+    },
+    {
+     "QuestionId": 24691713,
+     "QuestionTypeId": 6,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike ORD",
+      "Html": "Spike ORD"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.952Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082861,
+     "QuestionTemplateVersionId": 5653452,
+     "QuestionInfo": {
+      "Items": [
+       {
+        "ItemId": 20737219,
+        "Item": {
+         "Text": "first",
+         "Html": "first"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       },
+       {
+        "ItemId": 20737218,
+        "Item": {
+         "Text": "second",
+         "Html": "second"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       },
+       {
+        "ItemId": 20737217,
+        "Item": {
+         "Text": "third",
+         "Html": "third"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       }
+      ],
+      "Randomize": true,
+      "GradingType": 1
+     }
+    }
+   ],
+   "Next": null
+  }
+ },
+ {
+  "method": "PUT",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/24691707",
+  "requestBody": {
+   "Points": 3,
+   "Bonus": false,
+   "Mandatory": false,
+   "QuestionInfo": {
+    "QuestionText": {
+     "Content": "Spike MC (edited)",
+     "Type": "Text"
+    },
+    "Randomize": false,
+    "Answers": [
+     {
+      "Answer": {
+       "Content": "Right",
+       "Type": "Text"
+      },
+      "Weight": 0
+     },
+     {
+      "Answer": {
+       "Content": "Wrong",
+       "Type": "Text"
+      },
+      "Weight": 1,
+      "AnswerFeedback": {
+       "Content": "fb",
+       "Type": "Text"
+      }
+     }
+    ]
+   }
+  },
+  "status": 200,
+  "response": {
+   "QuestionId": 24691707,
+   "QuestionTypeId": 1,
+   "Name": null,
+   "QuestionText": {
+    "Text": "Spike MC (edited)",
+    "Html": "Spike MC (edited)"
+   },
+   "Points": 3.0,
+   "Difficulty": 1,
+   "Bonus": false,
+   "Mandatory": false,
+   "Hint": null,
+   "Feedback": null,
+   "LastModifiedBy": 0,
+   "LastModified": "2026-10-23T10:48:29.084Z",
+   "SectionId": 0,
+   "QuestionTemplateId": 5082855,
+   "QuestionTemplateVersionId": 5653453,
+   "QuestionInfo": {
+    "Answers": [
+     {
+      "PartId": 20737221,
+      "Answer": {
+       "Text": "Right",
+       "Html": "Right"
+      },
+      "AnswerFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "Weight": 0.0
+     },
+     {
+      "PartId": 20737220,
+      "Answer": {
+       "Text": "Wrong",
+       "Html": "Wrong"
+      },
+      "AnswerFeedback": {
+       "Text": "fb",
+       "Html": "fb"
+      },
+      "Weight": 100.0
+     }
+    ],
+    "Randomize": false,
+    "Enumeration": 4
+   }
+  }
+ },
+ {
+  "method": "GET",
+  "path": "/d2l/api/le/1.100/{orgUnitId}/quizzes/1743139/questions/",
+  "requestBody": null,
+  "status": 200,
+  "response": {
+   "Objects": [
+    {
+     "QuestionId": 24691705,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Probe D",
+      "Html": "Probe D"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:13.602Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082853,
+     "QuestionTemplateVersionId": 5653444,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737200,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 100.0
+       },
+       {
+        "PartId": 20737199,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691706,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Probe F",
+      "Html": "Probe F"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:13.997Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082854,
+     "QuestionTemplateVersionId": 5653445,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737202,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 100.0
+       },
+       {
+        "PartId": 20737201,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 1
+     }
+    },
+    {
+     "QuestionId": 24691707,
+     "QuestionTypeId": 1,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MC (edited)",
+      "Html": "Spike MC (edited)"
+     },
+     "Points": 3.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:48:29.084Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082855,
+     "QuestionTemplateVersionId": 5653453,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737221,
+        "Answer": {
+         "Text": "Right",
+         "Html": "Right"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "Weight": 0.0
+       },
+       {
+        "PartId": 20737220,
+        "Answer": {
+         "Text": "Wrong",
+         "Html": "Wrong"
+        },
+        "AnswerFeedback": {
+         "Text": "fb",
+         "Html": "fb"
+        },
+        "Weight": 100.0
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691708,
+     "QuestionTypeId": 2,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike TF",
+      "Html": "Spike TF"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.274Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082856,
+     "QuestionTemplateVersionId": 5653447,
+     "QuestionInfo": {
+      "TruePartId": 20737206,
+      "TrueWeight": 100.0,
+      "TrueFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "FalsePartId": 20737205,
+      "FalseWeight": 0.0,
+      "FalseFeedback": {
+       "Text": "",
+       "Html": ""
+      },
+      "Enumeration": 4
+     }
+    },
+    {
+     "QuestionId": 24691709,
+     "QuestionTypeId": 4,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MS",
+      "Html": "Spike MS"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.591Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082857,
+     "QuestionTemplateVersionId": 5653448,
+     "QuestionInfo": {
+      "Answers": [
+       {
+        "PartId": 20737209,
+        "Answer": {
+         "Text": "A",
+         "Html": "A"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": true
+       },
+       {
+        "PartId": 20737208,
+        "Answer": {
+         "Text": "B",
+         "Html": "B"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": true
+       },
+       {
+        "PartId": 20737207,
+        "Answer": {
+         "Text": "C",
+         "Html": "C"
+        },
+        "AnswerFeedback": {
+         "Text": "",
+         "Html": ""
+        },
+        "IsCorrect": false
+       }
+      ],
+      "Randomize": false,
+      "Enumeration": 4,
+      "Style": 2,
+      "GradingType": 0
+     }
+    },
+    {
+     "QuestionId": 24691710,
+     "QuestionTypeId": 8,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike SA",
+      "Html": "Spike SA"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:27.874Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082858,
+     "QuestionTemplateVersionId": 5653449,
+     "QuestionInfo": {
+      "Blanks": [
+       {
+        "PartId": 20737210,
+        "Answers": [
+         {
+          "Text": "alpha",
+          "Weight": 100.0
+         },
+         {
+          "Text": "beta",
+          "Weight": 100.0
+         }
+        ],
+        "EvaluationType": 0
+       }
+      ],
+      "GradingType": 0
+     }
+    },
+    {
+     "QuestionId": 24691711,
+     "QuestionTypeId": 7,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike WR",
+      "Html": "Spike WR"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.205Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082859,
+     "QuestionTemplateVersionId": 5653450,
+     "QuestionInfo": {
+      "PartId": 20737211,
+      "EnableStudentEditor": false,
+      "InitialText": {
+       "Text": "",
+       "Html": ""
+      },
+      "AnswerKey": {
+       "Text": "key",
+       "Html": "key"
+      },
+      "EnableAttachments": false
+     }
+    },
+    {
+     "QuestionId": 24691712,
+     "QuestionTypeId": 5,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike MATCH",
+      "Html": "Spike MATCH"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.581Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082860,
+     "QuestionTemplateVersionId": 5653451,
+     "QuestionInfo": {
+      "Choices": [
+       {
+        "ChoiceId": 20737214,
+        "Choice": {
+         "Text": "m1",
+         "Html": "m1"
+        }
+       },
+       {
+        "ChoiceId": 20737213,
+        "Choice": {
+         "Text": "m2",
+         "Html": "m2"
+        }
+       },
+       {
+        "ChoiceId": 20737212,
+        "Choice": {
+         "Text": "d1",
+         "Html": "d1"
+        }
+       }
+      ],
+      "Prompts": [
+       {
+        "PromptId": 20737216,
+        "Prompt": {
+         "Text": "p1",
+         "Html": "p1"
+        },
+        "CorrectChoiceId": 20737214
+       },
+       {
+        "PromptId": 20737215,
+        "Prompt": {
+         "Text": "p2",
+         "Html": "p2"
+        },
+        "CorrectChoiceId": 20737213
+       }
+      ],
+      "Randomize": true,
+      "GradingType": 1
+     }
+    },
+    {
+     "QuestionId": 24691713,
+     "QuestionTypeId": 6,
+     "Name": null,
+     "QuestionText": {
+      "Text": "Spike ORD",
+      "Html": "Spike ORD"
+     },
+     "Points": 1.0,
+     "Difficulty": 1,
+     "Bonus": false,
+     "Mandatory": false,
+     "Hint": null,
+     "Feedback": null,
+     "LastModifiedBy": 0,
+     "LastModified": "2026-10-23T10:47:28.952Z",
+     "SectionId": 0,
+     "QuestionTemplateId": 5082861,
+     "QuestionTemplateVersionId": 5653452,
+     "QuestionInfo": {
+      "Items": [
+       {
+        "ItemId": 20737219,
+        "Item": {
+         "Text": "first",
+         "Html": "first"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       },
+       {
+        "ItemId": 20737218,
+        "Item": {
+         "Text": "second",
+         "Html": "second"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       },
+       {
+        "ItemId": 20737217,
+        "Item": {
+         "Text": "third",
+         "Html": "third"
+        },
+        "ItemFeedback": {
+         "Text": "",
+         "Html": ""
+        }
+       }
+      ],
+      "Randomize": true,
+      "GradingType": 1
+     }
+    }
+   ],
+   "Next": null
+  }
+ }
+]

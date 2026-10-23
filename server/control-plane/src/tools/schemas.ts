@@ -1,8 +1,18 @@
 import { z } from "zod";
 import { DEFAULT_MAX_CHARS, MAX_MAX_CHARS } from "../utils/text-page.js";
 
-// Every tool is read-only: none of them can change anything in D2L.
+// Every tool is read-only except the quiz authoring tools below: none of the others can change
+// anything in D2L.
 export const READ_ONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
+// Adds something new and cannot overwrite existing content.
+export const WRITE_ADDS = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } as const;
+// Can replace existing content. Repeating the same call leaves the same result.
+export const WRITE_OVERWRITES = { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false } as const;
+
+export const dryRunField = z
+  .boolean()
+  .optional()
+  .describe("When true, validates the input and returns the request(s) that would be sent, without changing anything in D2L. Use it to show the user what will happen before the real call");
 
 export const courseIdField = z.string().describe("The course's courseId, from list_courses");
 
