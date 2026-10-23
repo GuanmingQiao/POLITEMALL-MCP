@@ -3,6 +3,7 @@ import type { ToolContext } from "../types/tool-context.js";
 import { sourceLinksEnabled } from "../utils/config.js";
 import { LINK_POLICY, linkDescription } from "./link-policy.js";
 import { registerCallD2lOperation } from "./call-d2l-operation.js";
+import { registerCreateQuiz } from "./create-quiz.js";
 import { registerGetAllFinalGrades } from "./get-all-final-grades.js";
 import { registerGetAnnouncements } from "./get-announcements.js";
 import { registerGetAssignmentFiles } from "./get-assignment-files.js";
@@ -36,7 +37,9 @@ import { registerGetSurveyResults } from "./get-survey-results.js";
 import { registerGetSurveys } from "./get-surveys.js";
 import { registerListCourses } from "./list-courses.js";
 import { registerListD2lOperations } from "./list-d2l-operations.js";
+import { registerSaveQuizQuestions } from "./save-quiz-questions.js";
 import { registerSearchPolitemallCatalog } from "./search-politemall-catalog.js";
+import { registerUpdateQuiz } from "./update-quiz.js";
 import { registerWhoami } from "./whoami.js";
 
 // One file per tool. The same set is registered whether the server runs in the cloud or locally:
@@ -52,6 +55,7 @@ function describeLinks(server: McpServer): void {
 export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   if (sourceLinksEnabled()) describeLinks(server);
   registerCallD2lOperation(server, ctx);
+  registerCreateQuiz(server, ctx);
   registerGetAllFinalGrades(server, ctx);
   registerGetAnnouncements(server, ctx);
   registerGetAssignmentFiles(server, ctx);
@@ -85,6 +89,8 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
   registerGetSurveys(server, ctx);
   registerListCourses(server, ctx);
   registerListD2lOperations(server, ctx);
+  registerSaveQuizQuestions(server, ctx);
   registerSearchPolitemallCatalog(server, ctx);
+  registerUpdateQuiz(server, ctx);
   registerWhoami(server, ctx);
 }

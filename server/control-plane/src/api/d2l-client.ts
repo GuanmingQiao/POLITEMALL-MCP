@@ -85,6 +85,25 @@ export async function apiGet<T>(school: D2LSchool, path: string, cookieHeader: s
   return failFor(res, resolvedPath);
 }
 
+// The only writing path. A write is sent once: nothing here retries, and a non-2xx answer is
+// raised like any read failure. Callers pass a version-less path (see versionedPath).
+export async function apiSend<T>(school: D2LSchool, method: "POST" | "PUT", path: string, credential: string, body: unknown): Promise<T> {
+  const resolvedPath = await withVersion(school, path);
+  const res = await fetch(`https://${SCHOOL_HOSTS[school]}${resolvedPath}`, {
+    method,
+    headers: { ...authHeaders(credential), Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    redirect: "manual",
+  });
+  if (res.status === 200 || res.status === 201) return (await res.json()) as T;
+  return failFor(res, resolvedPath);
+}
+
+// The Learning Environment API version a tenant currently resolves to (e.g. "1.97").
+export async function leVersionOf(school: D2LSchool): Promise<string> {
+  return (await getD2lVersions(SCHOOL_HOSTS[school])).le;
+}
+
 // A file was larger than the caller is willing to read into memory.
 export class FileTooLargeError extends Error {
   constructor(readonly maxBytes: number, readonly sizeBytes?: number) {

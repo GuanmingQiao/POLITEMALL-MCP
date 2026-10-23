@@ -67,6 +67,29 @@ permission error, not their own data, if they call one of these by mistake.
 | `get_survey_results` | Every student's attempts for a survey (or one student's, by classlist Identifier) |
 | `get_dropbox_submissions` | Every student's submission for an assignment folder — files, dates, score, grading status |
 
+**POLITEMall/NYP (D2L), quiz authoring (instructor/TA only, writes to the school)** — the only tools that
+change anything in D2L. Every other tool is read-only. Your MCP client should ask before running them. The
+agent turns your question list (Excel, CSV, a document) into structured data; these tools never read files.
+
+| Tool | What it does |
+|---|---|
+| `create_quiz` | Create an empty quiz — **hidden from students** unless `isActive` is true. Settings: `instructions`, `description`, `startDate` / `endDate` / `dueDate`, `attemptsAllowed` (1–10 or unlimited), `timeLimitMinutes`, `shuffleQuestions`, `allowHints`, `preventMovingBackwards`. Returns the `quizId` |
+| `update_quiz` | Change those settings on an existing quiz; settings you leave out keep their value |
+| `save_quiz_questions` | Add questions to a quiz (up to 100 per call), or update existing ones by `questionId`. Types: `multiple_choice`, `true_false`, `multi_select`, `short_answer`, `written_response`, `matching`, `ordering`. Needs a school on Brightspace API 1.100 or newer. Stops at the first failure and reports what was saved |
+
+All three take `dryRun: true` to preview the request without changing anything. There is no tool to delete
+a quiz or a question. Example question list for `save_quiz_questions`:
+
+```json
+[
+  { "type": "multiple_choice", "text": "Capital of France?", "answers": [
+      { "text": "Paris", "correct": true }, { "text": "Rome", "correct": false } ] },
+  { "type": "true_false", "text": "Water boils at 100 °C at sea level.", "answer": true, "points": 2 },
+  { "type": "matching", "text": "Match the symbol", "pairs": [
+      { "prompt": "H2O", "match": "Water" }, { "prompt": "NaCl", "match": "Salt" } ] }
+]
+```
+
 **POLITEMall/NYP (D2L), long-tail escape hatch** — the tools above are a curated slice of the
 ~190 read (`GET`) routes Valence exposes under Learning Environment; the rest are reachable
 without a dedicated tool for each one. Start with the curated tools above — they're
