@@ -1,6 +1,6 @@
 {
   "name": "@qiaoguanming/politemall-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server for the POLITEMall and NYP D2L Brightspace learning systems. Runs on your computer and signs in in your own browser.",
   "license": "MIT",
   "repository": {
