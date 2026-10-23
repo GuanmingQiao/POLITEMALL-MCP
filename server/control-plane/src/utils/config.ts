@@ -1,7 +1,11 @@
-// LOCAL_MODE=1 runs the very same server (same tools, same routes) on your own machine with no
-// AWS: the master key lives in a file next to the token store and the public origin defaults to
-// localhost. Everything else behaves identically to the hosted deployment.
-const local = process.env.LOCAL_MODE === "1";
+// The npx entry point sets POLITEMALL_HOST=local before anything else loads. A local run uses the
+// same tools, D2L client and session handling as the hosted server; only where credentials and
+// their key are kept (src/local) and how a person signs in differ.
+import { join } from "node:path";
+import { localDataDir } from "../local/paths.js";
+
+const local = process.env.POLITEMALL_HOST === "local";
+const localDir = local ? localDataDir() : "";
 const port = Number(process.env.PORT ?? 3000);
 
 // on/off switches: anything other than an explicit on/off value (unset, blank, junk) is the default.
@@ -25,16 +29,17 @@ export function resourceLinksEnabled(): boolean {
 
 export const config = {
   local,
+  localDir,
   port,
   awsRegion: process.env.AWS_REGION ?? "ap-southeast-1",
   masterKeySecretId: process.env.MASTER_KEY_SECRET_ID ?? "politemall-mcp/master-key",
-  storeFile: process.env.STORE_FILE ?? (local ? "./data/tokens.json" : "/data/tokens.json"),
-  publicOrigin: process.env.PUBLIC_ORIGIN ?? (local ? `http://localhost:${port}` : ""),
+  storeFile: process.env.STORE_FILE ?? (local ? join(localDir, "tokens.json") : "/data/tokens.json"),
+  publicOrigin: process.env.PUBLIC_ORIGIN ?? "",
   rateLimitPerMinute: Number(process.env.RATE_LIMIT_PER_MINUTE ?? 30),
   // Per-user sign-in state (encrypted Microsoft browser state, D2L sessions and tokens) and the
   // OAuth server's clients/tokens live next to the original token store.
-  sessionFile: process.env.SESSION_FILE ?? (local ? "./data/sessions.json" : "/data/sessions.json"),
-  oauthFile: process.env.OAUTH_FILE ?? (local ? "./data/oauth.json" : "/data/oauth.json"),
+  sessionFile: process.env.SESSION_FILE ?? (local ? join(localDir, "sessions.json") : "/data/sessions.json"),
+  oauthFile: process.env.OAUTH_FILE ?? (local ? join(localDir, "oauth.json") : "/data/oauth.json"),
   // How long saved Microsoft sign-in state is kept after its last successful use.
   msStateRetentionDays: Number(process.env.MS_STATE_RETENTION_DAYS ?? 30),
   // Streamed sign-in browsers: how many at once, and how long one may stay open.

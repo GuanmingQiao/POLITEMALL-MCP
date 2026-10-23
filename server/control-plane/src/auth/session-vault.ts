@@ -75,6 +75,14 @@ export function createUser(): Promise<string> {
   });
 }
 
+// Creates the record for a fixed, known id (the one local user) if it is not there yet.
+export function ensureUser(userId: string): Promise<void> {
+  const now = new Date().toISOString();
+  return withWrite((vault) => {
+    if (!vault[userId]) vault[userId] = { createdAt: now, lastUsedAt: now, encryptedSchools: {} };
+  });
+}
+
 export function userExists(userId: string): boolean {
   return readVault()[userId] !== undefined;
 }

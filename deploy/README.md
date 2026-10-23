@@ -119,3 +119,40 @@ restart makes every open link report "not recognised".
 - Tokens are never accepted via URL query strings anywhere (only `Authorization:
   Bearer` headers; the sign-in link's id is not a token and grants only one browser view) — query strings end up in proxy/access logs, browser history, and
   `Referer` headers.
+
+## Publishing the npm package (`@qiaoguanming/politemall-mcp`)
+
+Every release is published to npm by `.github/workflows/publish-npm.yml`, called from
+`release-please.yml` when the Release PR is merged. Users run it with
+`npx -y @qiaoguanming/politemall-mcp@latest`. Publishing is separate from deploying the AWS server above.
+
+**One-time setup (owner).**
+
+1. Check the name is free (`npm view @qiaoguanming/politemall-mcp` returns 404; the scope is your npm username, see `npm whoami`) and that you have an npm account
+   with 2FA enabled.
+2. Bootstrap: npm only lets you attach a Trusted Publisher to a package that already exists, so
+   publish the first version by hand from a clean checkout of `main`:
+   `cd server/control-plane && npm ci && npm run build && npm run smoke && npm publish --access public`
+   (`prepublishOnly` rebuilds). This reserves the name. Do this once; never again.
+3. On npmjs.com, package **Settings > Trusted Publisher > GitHub Actions**: repository
+   `GuanmingQiao/POLITEMALL-MCP`, workflow filename `release-please.yml` (npm validates the
+   **calling** workflow, not `publish-npm.yml`), no environment.
+4. Rollback token: create a granular access token limited to this one package with read and write,
+   then in GitHub create the environment `npm-rollback` (add yourself as a required reviewer) and
+   add the secret `NPM_TOKEN` to it. Trusted Publishing covers `npm publish` only, so
+   `rollback-npm.yml` (dist-tag, deprecate) needs this token, so leave token publishing allowed
+   under the package's Publishing access.
+5. Optional: add the `package` check to the branch protection rule for `main`.
+
+**What a release does.** Checks the tag equals `server/control-plane/package.json`'s version,
+builds, runs the tests and `npm run smoke` (pack, allowlist check, install the tarball, MCP
+handshake), then `npm publish --provenance`. Stable versions go to `latest`; a pre-release version
+(`1.0.0-rc.1`) goes to `next`. A re-run for a version already on npm does nothing.
+
+**Check a release.** `npm view @qiaoguanming/politemall-mcp dist-tags` shows the version under `latest`, the npm
+page shows the provenance badge, and
+`npx -y @qiaoguanming/politemall-mcp@latest --version` on a clean machine prints it.
+
+**Roll back.** Actions > **Roll back npm latest** > Run workflow with the earlier version (and
+optionally the bad version to deprecate). It moves `latest`; npx users get it on their next start
+(npx may serve a cached copy for a short while). Versions are never unpublished.

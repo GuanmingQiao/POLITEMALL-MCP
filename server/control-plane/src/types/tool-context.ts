@@ -20,4 +20,8 @@ export interface ToolContext {
   // Where a user goes to sign in again — shown in "session expired" messages. A fresh one-time
   // link each time it is read.
   connectUrl(): string;
+  // A host that signs people in somewhere other than a web link (the local server opens a browser
+  // window) supplies this: the sentence that tells the person how to sign in, which also starts the
+  // sign-in. When present it replaces "Sign in at <connectUrl()>" in messages.
+  connectHint?(): string;
 }

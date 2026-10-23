@@ -5,10 +5,7 @@ import { auditLog } from "../utils/audit-log.js";
 import {
   VIEWPORT,
   acquireBrowserSlot,
-  answerStaySignedIn,
-  harvestSession,
   launchBrowser,
-  onD2lHome,
   origins,
   type LaunchedBrowser,
 } from "./signin-browser.js";
@@ -17,6 +14,7 @@ import { mintToken } from "./d2l-session.js";
 import { createUser, saveBrowserState, saveSchoolSession, type SchoolSession } from "./session-vault.js";
 import { hasPersistentMicrosoftCookie, parseBrowserState } from "./microsoft-state.js";
 import type { PendingSignin } from "./signin-registry.js";
+import { collectSessions } from "./signin-harvest.js";
 
 // One streamed sign-in: a Chromium that exists for exactly this person's sign-in. It is shown to
 // them as screencast frames, their pointer and keyboard events are applied to it, and when D2L's
@@ -24,11 +22,7 @@ import type { PendingSignin } from "./signin-registry.js";
 // browser is closed. What the person types is forwarded to the page and nowhere else: it is never
 // logged, stored or inspected.
 
-const SCHOOLS: D2LSchool[] = ["politemall", "nyp"];
-const SECOND_TENANT_GRACE_MS = 60_000;
-const POLL_MS = 500;
 const MAX_INPUT_PER_SECOND = 400;
-const MAX_KMSI_CLICKS = 3;
 
 export interface SigninIo {
   frame(jpeg: Buffer): void;
@@ -133,42 +127,16 @@ export class SigninSession {
     }
   }
 
-  // Waits for D2L's home on each school, harvesting and verifying (by minting a token) as each is
-  // reached. After the first, the other tenant is opened in the same browser so the Microsoft
-  // session signs the person in there without asking again.
-  private async waitForSessions(): Promise<Map<D2LSchool, SchoolSession>> {
-    const page = this.launched!.page;
-    const context = this.launched!.context;
-    const found = new Map<D2LSchool, SchoolSession>();
-    const deadline = Date.now() + this.overall;
-    let secondDeadline = 0;
-    let secondStarted = false;
-
-    let kmsiClicks = 0;
-    while (!this.finished && Date.now() < deadline && !page.isClosed()) {
-      // Microsoft's "Stay signed in?": answer Yes so the sign-in can be replayed later.
-      if (kmsiClicks < MAX_KMSI_CLICKS && (await answerStaySignedIn(page))) kmsiClicks++;
-      for (const school of SCHOOLS) {
-        if (found.has(school) || !onD2lHome(page.url(), school)) continue;
-        const session = await harvestSession(page, context, school);
-        if (!session) continue;
-        const minted = await this.deps.mint({ school, cookieHeader: session.cookieHeader, xsrfToken: session.xsrfToken });
-        if (!minted.ok) continue;
-        found.set(school, { ...session, accessToken: minted.accessToken, accessTokenExpiresAt: minted.expiresAt });
-        this.io.status(`Signed in to ${school === "nyp" ? "NYP" : "POLITEMall"}.`);
-      }
-      if (found.size === SCHOOLS.length) break;
-      if (found.size === 1 && !secondStarted) {
-        secondStarted = true;
-        secondDeadline = Date.now() + SECOND_TENANT_GRACE_MS;
-        const other = SCHOOLS.find((s) => !found.has(s))!;
-        this.io.status(`Connecting ${other === "nyp" ? "NYP" : "POLITEMall"}…`);
-        await page.goto(`${origins[other]}/d2l/home`, { waitUntil: "domcontentloaded", timeout: 20_000 }).catch(() => undefined);
-      }
-      if (found.size === 1 && Date.now() > secondDeadline) break;
-      await page.waitForTimeout(POLL_MS).catch(() => undefined);
-    }
-    return found;
+  // Waits for D2L's home on each school; the loop itself is shared with the local sign-in.
+  private waitForSessions(): Promise<Map<D2LSchool, SchoolSession>> {
+    return collectSessions({
+      page: this.launched!.page,
+      context: this.launched!.context,
+      mint: this.deps.mint,
+      overallMs: this.overall,
+      cancelled: () => this.finished,
+      status: (m) => this.io.status(m),
+    });
   }
 
   // No accepted input arrived in time: close the browser and free the slot.
