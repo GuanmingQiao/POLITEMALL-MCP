@@ -280,6 +280,15 @@ function serve(ws: WebSocket, id: string, ip: string, deps?: SigninDeps): void {
 }
 
 // Tests drop every live sign-in between cases.
+// Ends every running sign-in and waits until their browsers are gone and their slots are free, so
+// one test's leftovers cannot make the next test's sign-in look busy (there is one slot by default).
+export async function stopAllSigninsForTests(): Promise<void> {
+  const running = [...lives.values()];
+  for (const live of running) clearTimeout(live.grace);
+  lives.clear();
+  await Promise.all(running.map((live) => live.session.stop()));
+}
+
 export function resetSigninStreamForTests(): void {
   resetStartLimitsForTests();
   for (const live of lives.values()) clearTimeout(live.grace);
