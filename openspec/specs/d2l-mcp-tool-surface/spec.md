@@ -80,12 +80,18 @@ parameters without every cataloged route being registered as its own MCP tool.
 
 ### Requirement: Read-only tools are annotated as such
 Every D2L tool the server registers (curated, generic, and discovery) SHALL be annotated
-as read-only and non-destructive using MCP tool annotations, since this change adds no
-mutating D2L routes.
+as read-only and non-destructive using MCP tool annotations, except the quiz authoring
+tools defined by the `quiz-authoring-tools` capability, which SHALL be annotated as
+modifying. The generic tool and the route catalog SHALL remain read-only (`GET`) even though
+authoring tools exist.
 
 #### Scenario: annotation present on a new tool
 - **WHEN** a client inspects the tool list returned by the server
-- **THEN** every D2L-related tool's annotations SHALL include `readOnlyHint: true` and `destructiveHint: false`
+- **THEN** every D2L-related tool other than `create_quiz`, `update_quiz` and `save_quiz_questions` SHALL include `readOnlyHint: true` and `destructiveHint: false`
+
+#### Scenario: generic tool cannot write
+- **WHEN** a client calls `call_d2l_operation` with the operation key of a write route
+- **THEN** the system SHALL return an unknown-operation error without making any request to D2L
 
 ### Requirement: Text responses from file routes are readable through the generic operation tool
 When `call_d2l_operation` invokes a route that returns file content and the response is text (HTML, plain text or JSON), the system SHALL return it as text — HTML as Markdown — paged per the `d2l-text-paging` capability. A response that is genuinely binary SHALL still be refused with an explanatory error.
