@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/GuanmingQiao/POLITEMALL-MCP/compare/v0.3.0...v0.3.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* stop a failed sign-in test from starving the next ones ([#24](https://github.com/GuanmingQiao/POLITEMALL-MCP/issues/24)) ([3938e8d](https://github.com/GuanmingQiao/POLITEMALL-MCP/commit/3938e8d9390b0f290d4bae84d94cb7e13930888e))
+
 ## [0.3.0](https://github.com/GuanmingQiao/POLITEMALL-MCP/compare/v0.2.0...v0.3.0) (2026-10-23)
 
 
