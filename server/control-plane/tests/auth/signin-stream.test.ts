@@ -1,4 +1,4 @@
-import { test, before, after } from "node:test";
+import { test, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -35,7 +35,7 @@ const vault = await import("../../src/auth/session-vault.js");
 const registry = await import("../../src/auth/signin-registry.js");
 const browser = await import("../../src/auth/signin-browser.js");
 const { buildApp } = await import("../../src/app.js");
-const { attachSigninSockets, resetSigninStreamForTests } = await import("../../src/auth/signin-stream.js");
+const { attachSigninSockets, resetSigninStreamForTests, stopAllSigninsForTests } = await import("../../src/auth/signin-stream.js");
 const { configureD2lSession } = await import("../../src/auth/d2l-session.js");
 
 const PASSWORD = "Sup3r-Secret-Pw!";
@@ -91,6 +91,16 @@ before(async () => {
   configureD2lSession({ mint: async () => ({ ok: true, accessToken: "minted", expiresAt: Date.now() + 3_600_000 }) });
 });
 
+// A sign-in holds the only browser slot until its browser has closed, and a test that fails (or
+// simply finishes) leaves its sign-in running or closing. Without this, the next test is refused
+// as "busy" and waits for a frame that never comes, which is how one failure used to take the next
+// three tests down with it.
+afterEach(async () => {
+  await stopAllSigninsForTests();
+  const end = Date.now() + 20_000;
+  while (browser.activeBrowserCount() > 0 && Date.now() < end) await new Promise((r) => setTimeout(r, 50));
+});
+
 after(async () => {
   await new Promise((r) => appServer.close(r));
   await new Promise((r) => stubServer.close(r));
@@ -121,6 +131,9 @@ function watch(ws: WebSocket) {
   };
   return { events, frames: () => frames, until };
 }
+
+// What a failed "frames arrived" wait reports, so a CI log says what state the stream was in.
+const noFrames = (w: ReturnType<typeof watch>) => `no frame arrived (events: ${JSON.stringify(w.events)}, browsers running: ${browser.activeBrowserCount()})`;
 
 const send = (ws: WebSocket, o: unknown) => ws.send(JSON.stringify(o));
 async function typeText(ws: WebSocket, text: string) {
@@ -279,7 +292,7 @@ test("abandoned: a viewer who leaves for good ends the browser after the grace p
     const s = registry.createSignin();
     const ws = await open(s.id);
     const w = watchers.get(ws)!;
-    assert.ok(await w.until(() => w.frames() > 0));
+    assert.ok(await w.until(() => w.frames() > 0), noFrames(w));
     assert.equal(browser.activeBrowserCount(), 1);
     ws.close();
     await new Promise((r) => setTimeout(r, 500));
@@ -304,7 +317,7 @@ test("reload or switching apps: the same viewer comes back within the grace peri
     const s = registry.createSignin();
     const first = await open(s.id);
     const w1 = watchers.get(first)!;
-    assert.ok(await w1.until(() => w1.frames() > 0));
+    assert.ok(await w1.until(() => w1.frames() > 0), noFrames(w1));
     assert.equal((await fetch(`http://127.0.0.1:${appPort}/signin/${s.id}`)).status, 200, "reloading the page is not refused while the sign-in runs");
     first.close();
     await new Promise((r) => setTimeout(r, 600));
@@ -330,7 +343,7 @@ test("a sign-in that finishes while the viewer is away is delivered, once, when 
   const s = registry.createSignin({ onSuccess: async () => "http://client.example/callback?code=held" });
   const ws = await open(s.id);
   const w = watchers.get(ws)!;
-  assert.ok(await w.until(() => w.frames() > 0));
+  assert.ok(await w.until(() => w.frames() > 0), noFrames(w));
   await new Promise((r) => setTimeout(r, 2500));
   send(ws, { t: "mouse", type: "down", x: 150, y: 120 });
   send(ws, { t: "mouse", type: "up", x: 150, y: 120 });
@@ -393,7 +406,7 @@ test("a second viewer cannot attach to a sign-in that is already running", { ski
     const s = registry.createSignin();
     const first = await open(s.id);
     const w = watchers.get(first)!;
-    assert.ok(await w.until(() => w.frames() > 0));
+    assert.ok(await w.until(() => w.frames() > 0), noFrames(w));
     await assert.rejects(open(s.id), "one viewer at a time");
     assert.equal(first.readyState, first.OPEN, "the first viewer is not displaced");
     first.close();
@@ -498,7 +511,7 @@ test("limits: an idle viewer's browser is closed after the first-input time and 
     const s = registry.createSignin();
     const ws = await open(s.id);
     const w = watchers.get(ws)!;
-    assert.ok(await w.until(() => w.frames() > 0));
+    assert.ok(await w.until(() => w.frames() > 0), noFrames(w));
     assert.equal(browser.activeBrowserCount(), 1);
     assert.ok(await w.until(() => w.events.some((e) => e.type === "fail" && /No input received/.test(String(e.reason))), 15_000));
     assert.ok(await w.until(() => browser.activeBrowserCount() === 0, 10_000), "slot freed");
@@ -518,7 +531,7 @@ test("limits: a viewer who types in time is not cut off by the first-input timer
     const s = registry.createSignin();
     const ws = await open(s.id);
     const w = watchers.get(ws)!;
-    assert.ok(await w.until(() => w.frames() > 0));
+    assert.ok(await w.until(() => w.frames() > 0), noFrames(w));
     send(ws, { t: "mouse", type: "move", x: 10, y: 10 });
     await new Promise((r) => setTimeout(r, 6000));
     assert.ok(!w.events.some((e) => e.type === "fail"), "still running after the first-input time");
