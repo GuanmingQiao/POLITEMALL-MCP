@@ -1,0 +1,17 @@
+#cloud-config
+# Bootstraps the hosted politemall-mcp VM: Docker, the compose plugin and the repo. It does not
+# start the app; deploy/README.md covers writing server/.env and `docker compose up`.
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - git
+
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+  - git clone https://github.com/GuanmingQiao/POLITEMALL-MCP.git /opt/politemall-mcp
+  # The container runs as uid 1000 and needs to own the data directory.
+  - mkdir -p /opt/politemall-mcp/server/data
+  - chown -R 1000:1000 /opt/politemall-mcp/server/data
+  - touch /opt/politemall-mcp-bootstrap-done

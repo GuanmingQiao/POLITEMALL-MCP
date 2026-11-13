@@ -1,16 +1,19 @@
 # Deploying the hosted (multi-tenant) server
 
-`provision.ps1` records the one-time AWS setup (security group, IAM role, Secrets
-Manager master key, EC2 instance). After the instance boots and `user-data.sh` has
-cloned the repo (check via SSM: `test -f /opt/politemall-mcp-bootstrap-done`),
-finish the deploy manually:
+`azure/provision.ps1` records the one-time Azure setup: a resource group in East Asia, a static
+public IP, a network security group (80/443 only), a Key Vault holding the master key, and a Linux VM
+with a managed identity that may read that one vault. `azure/cloud-init.yaml` installs Docker and
+clones the repo. After the VM boots, check via Run Command that `test -f /opt/politemall-mcp-bootstrap-done`
+succeeds, then finish the deploy manually:
 
-1. Write `server/.env` on the instance with `PUBLIC_HOST=<ip-with-dashes>.sslip.io`
-   (e.g. `203-0-113-10.sslip.io` for IP `203.0.113.10`). **Do not use the AWS-assigned
-   `*.compute.amazonaws.com` hostname** — Let's Encrypt refuses to issue certificates
-   for it (it's on the public suffix "forbidden" list). sslip.io wildcard-resolves
-   `<ip-with-dashes>.sslip.io` to the IP itself and works fine with Let's Encrypt.
+1. Write `server/.env` on the VM with `PUBLIC_HOST=<ip-with-dashes>.sslip.io` (e.g.
+   `203-0-113-10.sslip.io` for IP `203.0.113.10`) and
+   `AZURE_KEY_VAULT_URL=https://<vault-name>.vault.azure.net` (the script prints both). Use sslip.io, not
+   the Azure-assigned `*.cloudapp.azure.com` name, so the certificate hostname matches the IP.
 2. `cd /opt/politemall-mcp/server && docker compose up -d --build`
+
+The server refuses to start, naming the vault and secret, if it cannot read a valid 32-byte master key.
+If the managed identity's role assignment has only just been made, wait a few minutes and restart.
 
 There's no user list to seed. The server creates `server/data/sessions.json` (each person's encrypted
 D2L sessions, access tokens and Microsoft sign-in state) and `server/data/oauth.json` (registered MCP
@@ -18,8 +21,8 @@ clients and hashed MCP tokens) the first time someone signs in, and both stay gi
 container needs about 1.4 GB for Chromium during a sign-in (`mem_limit`/`shm_size` in
 `docker-compose.yml`); the default is one sign-in at a time (`SIGNIN_MAX_CONCURRENT`).
 
-All of this was done interactively via `aws ssm send-command` (no SSH — the security
-group has no port 22; management is via SSM Session Manager / Run Command only).
+Manage the VM with `az vm run-command invoke --resource-group politemall-mcp-rg --name politemall-mcp
+--command-id RunShellScript --scripts "<command>"` (no SSH: the network security group has no port 22).
 
 ## Upgrading to the unprivileged container
 
@@ -124,7 +127,7 @@ restart makes every open link report "not recognised".
 
 Every release is published to npm by `.github/workflows/publish-npm.yml`, called from
 `release-please.yml` when the Release PR is merged. Users run it with
-`npx -y @qiaoguanming/politemall-mcp@latest`. Publishing is separate from deploying the AWS server above.
+`npx -y @qiaoguanming/politemall-mcp@latest`. Publishing is separate from deploying the Azure server above.
 
 **One-time setup (owner).**
 

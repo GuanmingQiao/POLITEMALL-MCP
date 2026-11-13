@@ -25,14 +25,14 @@
 
 ## Deploying
 
-A release does **not** update the server. Deployment to AWS is manual: follow "Redeploying after a code change" in `deploy/README.md` (SSM, no SSH), at the release tag. Only do it when the user explicitly asks. Publishing to npm is automatic but separate from deploying. Automated deploy is planned as a separate change.
+A release does **not** update the server. Deployment to Azure is manual: follow "Redeploying after a code change" in `deploy/README.md` (Azure Run Command, no SSH), at the release tag. Only do it when the user explicitly asks. Publishing to npm is automatic but separate from deploying. Automated deploy is planned as a separate change.
 
 ## Never
 
 - Push to `main`, force-push, or bypass branch protection or hooks.
 - Create or move tags, or edit release-managed files (above).
-- Put credentials, tokens, AWS keys or `.env` / `server/data` contents in the repo, a PR, or a log.
-- Change the running server, security group, IAM or secrets except as the user directly instructs.
+- Put credentials, tokens, cloud keys or `.env` / `server/data` contents in the repo, a PR, or a log.
+- Change the running server, network rules, role assignments or Key Vault secrets except as the user directly instructs.
 - Use unpinned third-party actions: pin to a full commit SHA with a `# vX` comment; Dependabot updates them.
 
 ## Keeping this file true
