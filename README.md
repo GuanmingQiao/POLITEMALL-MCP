@@ -218,13 +218,13 @@ server/
       types/                shared types, incl. ToolContext
     tests/                  mirrors src/ (api/, auth/, tools/, utils/); run with `npm test`
   docker-compose.yml, Caddyfile
-deploy/                     AWS provisioning notes/scripts for the hosted server
+deploy/                     Azure provisioning notes/scripts for the hosted server
 ```
 
 Tools never know where a caller's sessions live: they receive a `ToolContext`
 (`types/tool-context.ts`), so the hosted server and a local run expose the identical
 tool set. See [deploy/README.md](deploy/README.md) for how the server is provisioned
-and operated on AWS.
+and operated on Azure.
 
 ## Running it locally
 
