@@ -9,18 +9,18 @@
 
 ## 2. Compose and provisioning
 
-- [ ] 2.1 Update `server/docker-compose.yml` environment for the new variable names and drop the AWS ones. Verify `docker compose config` renders and the CI `docker` check is green.
+- [x] 2.1 Update `server/docker-compose.yml` environment for the new variable names and drop the AWS ones. Verify `docker compose config` renders and the CI `docker` check is green.
 - [x] 2.2 Write `deploy/azure/provision.ps1` (resource group, static IP, NSG for 80/443 only, Key Vault with a generated 32-byte secret, managed identity and role assignment, B2als_v2 VM in East Asia). Verify it runs to completion in the owner's subscription.
 - [x] 2.3 Write `deploy/azure/cloud-init.yaml` to install Docker and compose, clone the repo and prepare `data/` for uid 1000. Verify on a fresh VM that `/opt/politemall-mcp` exists and `docker compose version` works.
 
 ## 3. Docs and rules
 
-- [ ] 3.1 Rewrite `deploy/README.md` for Azure (first deploy, redeploy, Run Command access, sign-out, rollback). Verify every command in it was run once during the cutover.
+- [x] 3.1 Rewrite `deploy/README.md` for Azure (first deploy, redeploy, Run Command access, sign-out, rollback). Verify every command in it was run once during the cutover.
 - [x] 3.2 Update `README.md`, `CLAUDE.md` and `.claude/rules/cicd.md` to say Azure, in the same PR. Verify a case-insensitive grep for `aws` over those files returns only intentional historical mentions.
 
 ## 4. Cutover
 
-- [ ] 4.1 When the owner asks, deploy to Azure at the release tag, then verify HTTPS on `<ip-with-dashes>.sslip.io`, a real sign-in, a tool call returning data, and `chromium_sandbox` and `signin_ok` in the logs.
-- [ ] 4.2 Announce the new URL; verify at least one fresh MCP client registration and sign-in works end to end.
-- [ ] 4.3 After the soak and on the owner's explicit instruction, decommission the AWS resources and move the AWS scripts to `deploy/aws-retired/`. Verify the AWS console shows no politemall-mcp resources.
-- [ ] 4.4 Open the PR titled `feat!: host the server on Azure and read the master key from Key Vault`, linking this change. Verify `test`, `docker`, `package`, `openspec` and `pr-title` are green, then archive in its own `chore:` PR.
+- [x] 4.1 When the owner asks, deploy to Azure at the release tag, then verify HTTPS on `<ip-with-dashes>.sslip.io`, a real sign-in, a tool call returning data, and `chromium_sandbox` and `signin_ok` in the logs.
+- [x] 4.2 Announce the new URL; verify at least one fresh MCP client registration and sign-in works end to end.
+- [x] 4.3 After the soak and on the owner's explicit instruction, decommission the AWS resources and move the AWS scripts to `deploy/aws-retired/`. Verify the AWS console shows no politemall-mcp resources.
+- [x] 4.4 Open the PR titled `feat!: host the server on Azure and read the master key from Key Vault`, linking this change. Verify `test`, `docker`, `package`, `openspec` and `pr-title` are green, then archive in its own `chore:` PR.
