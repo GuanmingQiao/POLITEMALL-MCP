@@ -62,6 +62,8 @@ export const config = {
   // How long a sign-in browser is kept after its viewer disconnects (for example a phone browser
   // sent to the background to approve a push in Authenticator) so the viewer can come back.
   signinReattachGraceMs: Number(process.env.SIGNIN_REATTACH_GRACE_MS ?? 2 * 60 * 1000),
+  // How long a background (silent) re-login may take before it gives up.
+  silentReloginTimeoutMs: Number(process.env.SILENT_RELOGIN_TIMEOUT_MS ?? 30 * 1000),
   // How often every stored D2L session is renewed in the background to keep it alive.
   keepAliveIntervalMs: Number(process.env.KEEPALIVE_INTERVAL_MS ?? 60 * 60 * 1000),
 };

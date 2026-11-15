@@ -31,7 +31,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "tsc -p tsconfig.test.json && node --test \".test-build/tests/**/*.test.js\"",
+    "test": "tsc -p tsconfig.test.json && node --test --test-timeout=180000 \".test-build/tests/**/*.test.js\"",
     "smoke": "node scripts/smoke-pack.mjs",
     "prepublishOnly": "npm run build"
   },

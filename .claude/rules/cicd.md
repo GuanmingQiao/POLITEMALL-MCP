@@ -5,7 +5,7 @@
 1. Branch from `main` (`feat/...`, `fix/...`). Never push to `main`.
 2. For a feature or behavior change, start with an OpenSpec change (`openspec/changes/<name>`) and link it in the PR.
 3. Open a PR. The **PR title must be a Conventional Commit**: `feat: ...`, `fix: ...`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, `ci:`, `chore:`, `revert:`. Use `feat!:` or a `BREAKING CHANGE:` footer for breaking changes. PRs are squash-merged, so the title becomes the commit on `main` that sets the version and changelog. Commits on the branch can be free-form.
-4. Required checks must be green to merge: `test` (build + `npm test`), `docker` (image builds), `pr-title`. The `package` check (pack, inspect and start the npm package) and the `openspec` check (validates specs and changes) also run on every PR. Reproduce locally with the commands in `CLAUDE.md`.
+4. Required checks must be green to merge: `test` (build + `npm test`), `docker` (image builds), `pr-title`. The `package` check (pack, inspect and start the npm package) and the `openspec` check (validates specs and changes) also run on every PR. Reproduce locally with the commands in `CLAUDE.md`. The `test` job is capped at 15 minutes and each test at 3 minutes (`--test-timeout`), so a hang fails fast; a cancelled-after-hours run is a bug to report, not to re-run blindly.
 5. After merging an OpenSpec change's implementation, archive it (`/opsx:archive`) in its own `chore:` PR.
 
 ## Releases

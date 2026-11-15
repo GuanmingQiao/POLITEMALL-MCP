@@ -101,10 +101,18 @@ afterEach(async () => {
   while (browser.activeBrowserCount() > 0 && Date.now() < end) await new Promise((r) => setTimeout(r, 50));
 });
 
+// close() alone waits for every open connection, and a browser that is still shutting down (or a
+// viewer socket) can hold one forever, which hung the whole run. So end the connections explicitly,
+// and bound the hook so that a stuck teardown fails the run instead of stalling it.
 after(async () => {
-  await new Promise((r) => appServer.close(r));
-  await new Promise((r) => stubServer.close(r));
-});
+  await stopAllSigninsForTests();
+  const shut = (server: Server) =>
+    new Promise<void>((resolve) => {
+      server.close(() => resolve());
+      server.closeAllConnections();
+    });
+  await Promise.all([shut(appServer), shut(stubServer)]);
+}, { timeout: 30_000 });
 
 const watchers = new WeakMap<WebSocket, ReturnType<typeof watch>>();
 const open = (id: string, origin = config.publicOrigin) =>
@@ -437,8 +445,15 @@ test("silent re-login: saved Microsoft state revives a session with no input; no
   assert.equal(browser.activeBrowserCount(), 0, "the background browser is closed again");
 
   // State the site no longer accepts: it lands on the login form, needs interaction, gives up.
+  // The production limit is 30 s; a few seconds proves the same thing (it gives up, and frees the slot).
   await vault.saveBrowserState(user, JSON.stringify({ cookies: [], origins: [] }));
-  assert.deepEqual(await browser.silentRelogin(user, "politemall"), { ok: false, reason: "timeout" });
+  const savedTimeout = config.silentReloginTimeoutMs;
+  config.silentReloginTimeoutMs = 3000;
+  try {
+    assert.deepEqual(await browser.silentRelogin(user, "politemall"), { ok: false, reason: "timeout" });
+  } finally {
+    config.silentReloginTimeoutMs = savedTimeout;
+  }
   assert.equal(browser.activeBrowserCount(), 0);
 });
 
