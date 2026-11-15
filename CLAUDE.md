@@ -6,7 +6,7 @@ Hosted MCP server for the POLITEMall and NYP D2L Brightspace tenants. See [READM
 
 - `server/control-plane/` – the MCP server (TypeScript, Node 22). `src/`, `tests/`, `Dockerfile`. Also published to npm as `@qiaoguanming/politemall-mcp` (`src/local/` is the npx entry point).
 - `server/docker-compose.yml`, `server/Caddyfile` – how it runs on the host.
-- `deploy/` – one-time AWS provisioning record and the manual deploy procedure (`deploy/README.md`).
+- `deploy/` – one-time Azure provisioning record and the manual deploy procedure (`deploy/README.md`).
 - `openspec/` – specs (`openspec/specs`) and in-flight changes (`openspec/changes`).
 - `.github/` – CI, release and dependency automation.
 
@@ -23,6 +23,6 @@ npm run smoke   # after build: pack, inspect and start the npm package
 
 Feature or behavior changes use OpenSpec: `/opsx:propose`, then `/opsx:apply`, then `/opsx:archive`.
 Everything reaches `main` through a pull request with CI green. Releases are automated and each one publishes
-to npm. Deploying to AWS is still manual. Read the full rules before touching workflows, versions, tags or the server:
+to npm. Deploying to Azure is still manual. Read the full rules before touching workflows, versions, tags or the server:
 
 @.claude/rules/cicd.md

@@ -6,7 +6,7 @@ The hosted server runs on AWS (one EC2 instance, Secrets Manager, SSM), but the 
 
 ## What Changes
 
-- Run the hosted server on a single Azure Linux VM (Singapore region, to stay close to the current ap-southeast-1 and to D2L) with the existing Docker Compose stack unchanged: Caddy plus the control-plane container.
+- Run the hosted server on a single Azure Linux VM (East Asia region; Southeast Asia is not available to the owner's subscription) with the existing Docker Compose stack unchanged: Caddy plus the control-plane container.
 - Replace the AWS Secrets Manager master-key loader with Azure Key Vault, read through the VM's managed identity (no stored credentials). Remove the `@aws-sdk/client-secrets-manager` dependency and the `AWS_REGION` / `MASTER_KEY_SECRET_ID` settings. **BREAKING** for anyone self-hosting on AWS: they must set `MASTER_KEY_BASE64` or move to Key Vault.
 - Add Azure provisioning scripts under `deploy/` (resource group, static public IP, network rules for 80/443 only, VM, Key Vault, managed identity) and a cloud-init bootstrap replacing `user-data.sh`. Mark the AWS scripts as retired once the cutover is done.
 - Cut over with a fresh start: generate a new master key in Key Vault, start with an empty `server/data`, and have everyone re-register their MCP client and sign in again. The hostname changes (new static IP, still `<ip-with-dashes>.sslip.io`), so every connector URL changes once.

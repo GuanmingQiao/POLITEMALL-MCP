@@ -5,7 +5,7 @@
 1. Branch from `main` (`feat/...`, `fix/...`). Never push to `main`.
 2. For a feature or behavior change, start with an OpenSpec change (`openspec/changes/<name>`) and link it in the PR.
 3. Open a PR. The **PR title must be a Conventional Commit**: `feat: ...`, `fix: ...`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, `ci:`, `chore:`, `revert:`. Use `feat!:` or a `BREAKING CHANGE:` footer for breaking changes. PRs are squash-merged, so the title becomes the commit on `main` that sets the version and changelog. Commits on the branch can be free-form.
-4. Required checks must be green to merge: `test` (build + `npm test`), `docker` (image builds), `pr-title`. The `package` check (pack, inspect and start the npm package) and the `openspec` check (validates specs and changes) also run on every PR. Reproduce locally with the commands in `CLAUDE.md`.
+4. Required checks must be green to merge: `test` (build + `npm test`), `docker` (image builds), `pr-title`. The `package` check (pack, inspect and start the npm package) and the `openspec` check (validates specs and changes) also run on every PR. Reproduce locally with the commands in `CLAUDE.md`. The `test` job is capped at 15 minutes and each test at 3 minutes (`--test-timeout`), so a hang fails fast; a cancelled-after-hours run is a bug to report, not to re-run blindly.
 5. After merging an OpenSpec change's implementation, archive it (`/opsx:archive`) in its own `chore:` PR.
 
 ## Releases
@@ -25,14 +25,14 @@
 
 ## Deploying
 
-A release does **not** update the server. Deployment to AWS is manual: follow "Redeploying after a code change" in `deploy/README.md` (SSM, no SSH), at the release tag. Only do it when the user explicitly asks. Publishing to npm is automatic but separate from deploying. Automated deploy is planned as a separate change.
+A release does **not** update the server. Deployment to Azure is manual: follow "Redeploying after a code change" in `deploy/README.md` (Azure Run Command, no SSH), at the release tag. Only do it when the user explicitly asks. Publishing to npm is automatic but separate from deploying. Automated deploy is planned as a separate change.
 
 ## Never
 
 - Push to `main`, force-push, or bypass branch protection or hooks.
 - Create or move tags, or edit release-managed files (above).
-- Put credentials, tokens, AWS keys or `.env` / `server/data` contents in the repo, a PR, or a log.
-- Change the running server, security group, IAM or secrets except as the user directly instructs.
+- Put credentials, tokens, cloud keys or `.env` / `server/data` contents in the repo, a PR, or a log.
+- Change the running server, network rules, role assignments or Key Vault secrets except as the user directly instructs.
 - Use unpinned third-party actions: pin to a full commit SHA with a `# vX` comment; Dependabot updates them.
 
 ## Keeping this file true

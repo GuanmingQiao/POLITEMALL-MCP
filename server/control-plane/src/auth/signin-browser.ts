@@ -286,7 +286,6 @@ export async function answerStaySignedIn(page: Page): Promise<boolean> {
 
 // ---- silent re-login ----
 
-const SILENT_TIMEOUT_MS = 30_000;
 const MAX_KMSI_CLICKS = 3;
 
 // A fresh headless browser replays the saved Microsoft state. If Microsoft still recognises the
@@ -309,7 +308,7 @@ export async function silentRelogin(userId: string, school: D2LSchool): Promise<
 
     const started = Date.now();
     let kmsiClicks = 0;
-    while (Date.now() - started < SILENT_TIMEOUT_MS) {
+    while (Date.now() - started < config.silentReloginTimeoutMs) {
       if (onD2lHome(page.url(), school)) {
         const session = await harvestSession(page, context, school);
         if (!session) return { ok: false, reason: "no_session" };
